@@ -30,24 +30,28 @@ Crea un middleware que verifique si el usuario es un administrador. **Este middl
 4.  Si el nombre del rol es exactamente "Admin", llama a `next()`.
 5.  De lo contrario, devuelve un error `403 Forbidden` con un mensaje claro como "Access denied. Admin privileges required.".
 
+**C. `src/constants/auth.ts` (actualizar):**
+Define una constante para el nombre del rol administrador para evitar strings mágicos:
+`export const ADMIN_ROLE_NAME = 'Admin';`
+
 ### 2. Implementa la Gestión de Roles
 
 **A. Validación y Tipos (`src/validations/role.validation.ts`):**
-*   Crea un `createRoleSchema` con Zod para validar el `body` (`name: string`, `description: string?`, `color: string?`).
+*   Crea un `create_role_schema` con Zod para validar el `body` (`name: string`, `description: string?`, `color: string?`).
 *   Infiere y exporta el tipo `CreateRoleBody` desde el esquema.
 
 **B. Servicio (`src/services/role.service.ts`):**
-*   **`create(data: CreateRoleBody, companyId: number)`:**
-    *   Verifica si ya existe un rol con el mismo nombre para esa `companyId`. Si es así, lanza un error.
-    *   Crea el nuevo rol usando Prisma.
-*   **`findByCompany(companyId: number)`:**
-    *   Devuelve una lista de todos los roles para la `companyId` especificada.
+*   **`create(data: CreateRoleBody, company_id: number)`:**
+*   Verifica si ya existe un rol con el mismo nombre para esa `company_id`. Si es así, lanza un error.
+*   Crea el nuevo rol usando Prisma.
+*   **`find_by_company(company_id: number)`:**
+*   Devuelve una lista de todos los roles para la `company_id` especificada.
 
 **C. Controlador (`src/controllers/role.controller.ts`):**
 *   Crea los handlers `createRoleHandler` y `getRolesHandler`, que llaman a los métodos del servicio correspondientes y manejan las respuestas HTTP y los errores (pasándolos a `next`).
 
 **D. Rutas (`src/routes/role.routes.ts`):**
-*   Crea un router para `/api/roles`.
+*   Crea un router para roles y, en `src/app.ts`, móntalo bajo el prefijo `/api/v1/roles`.
 *   Protege todas las rutas con la secuencia de middlewares: `authMiddleware`, `adminMiddleware`, y luego el middleware de validación si es necesario (ej: `validateBody(createRoleSchema)`).
     *   `POST /`: `authMiddleware`, `adminMiddleware`, `validateBody(createRoleSchema)`, `createRoleHandler`
     *   `GET /`: `authMiddleware`, `adminMiddleware`, `getRolesHandler`
@@ -55,12 +59,12 @@ Crea un middleware que verifique si el usuario es un administrador. **Este middl
 ### 3. Implementa la Gestión de Empleados
 
 **A. Validación y Tipos (`src/validations/employee.validation.ts`):**
-*   Crea un `addEmployeeSchema` con Zod (`email: string`, `firstName: string`, `lastName: string`, `roleId: number`, `position: string?`).
+*   Crea un `add_employee_schema` con Zod (`email: string`, `first_name: string`, `last_name: string`, `role_id: number`, `position: string?`).
 *   Infiere y exporta el tipo `AddEmployeeBody`.
 
 **B. Servicio (`src/services/employee.service.ts`):**
-*   **`add(data: AddEmployeeBody, companyId: number)`:**
-    *   **Validación de Permisos:** Verifica que el `roleId` proporcionado en `data` realmente pertenezca a la `companyId` del administrador. Si no, lanza un error de seguridad.
+*   **`add(data: AddEmployeeBody, company_id: number)`:**
+*   **Validación de Permisos:** Verifica que el `role_id` proporcionado en `data` realmente pertenezca a la `company_id` del administrador. Si no, lanza un error de seguridad.
     *   Usa una transacción de Prisma.
     *   Busca si ya existe un `user` con el `email` proporcionado.
     *   Si el usuario no existe, créalo (con una contraseña temporal aleatoria y segura, ya que el flujo de invitación formal es post-MVP).
@@ -74,17 +78,29 @@ Crea un middleware que verifique si el usuario es un administrador. **Este middl
 *   Crea los handlers `addEmployeeHandler` y `getEmployeesHandler`.
 
 **D. Rutas (`src/routes/employee.routes.ts`):**
-*   Crea un router para `/api/employees`.
+*   Crea un router para empleados y, en `src/app.ts`, móntalo bajo el prefijo `/api/v1/employees`.
 *   Protege todas las rutas con `authMiddleware` y `adminMiddleware`.
 
+### 3.5 Soft delete y Scoping multi-tenant (MVP)
+
+- Roles: hard delete (para simplificar el MVP).
+- Company employees y shifts: soft delete mediante `deleted_at`. Todos los listados deben excluir registros con `deleted_at` no nulo.
+- Antes de crear/actualizar/eliminar, valida que los recursos (`role_id`, `company_employee_id`) pertenecen al `company_id` del JWT del solicitante.
+
+### 3.6 Contrato de respuesta y Swagger
+
+- Responder usando el contrato global `{ success, data, error, meta }`.
+- Documentar en Swagger (OpenAPI 3) las rutas `/api/v1/roles` y `/api/v1/employees` con esquemas y ejemplos, incluyendo códigos 201/200/400/401/403/404/409.
+
 ### 4. Actualiza `src/app.ts`
-Registra los nuevos routers para que la aplicación los utilice:```typescript
+Registra los nuevos routers con prefijo `/api/v1`:
+```typescript
 // Fragmento para añadir a src/app.ts
 import roleRouter from './routes/role.routes';
 import employeeRouter from './routes/employee.routes';
 // ...
-app.use('/api/roles', roleRouter);
-app.use('/api/employees', employeeRouter);
+app.use('/api/v1/roles', roleRouter);
+app.use('/api/v1/employees', employeeRouter);
 // ...
 ```
 

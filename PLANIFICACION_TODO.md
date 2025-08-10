@@ -8,7 +8,7 @@ Este documento es la guía maestra para el desarrollo de la aplicación. Describ
 
 **Objetivo:** Establecer la arquitectura completa del proyecto y construir la base de datos para el Producto Mínimo Viable (MVP).
 
-*   **Archivo 1: `00_ARQUITECTURA_Y_PLANO_MAESTRO_FINAL.md`**
+*   **Archivo 1: `00_ARQUITECTURA_BASE_DE_DATOS_FINAL.md`**
     *   **Propósito:** Es el documento de **referencia interna** y la "Constitución" del proyecto. Contiene la visión completa del producto, el stack tecnológico y el diseño **final y completo** de la base de datos (con todas las tablas, vistas y triggers).
     *   **Uso:** No se utiliza directamente como prompt en la fase inicial. Sirve como guía estratégica para asegurar que todas las decisiones de desarrollo sean coherentes con la visión a largo plazo.
 
@@ -16,23 +16,34 @@ Este documento es la guía maestra para el desarrollo de la aplicación. Describ
     *   **Propósito:** Es la **orden de trabajo** para la IA. Contiene un subconjunto del Plano Maestro, detallando únicamente las tablas y campos necesarios para el MVP.
     *   **Uso:** Este es el primer prompt técnico que se le da a la IA para generar los scripts SQL de la base de datos inicial.
 
+#### Decisiones MVP (críticas)
+
+- Fuente de verdad del esquema: Prisma (migraciones). El SQL del Prompt 01 es referencia conceptual para el modelado.
+- Reglas de turnos: Se permiten múltiples turnos por empleado por día. No se permiten turnos overnight (no cruzar medianoche).
+- Validación de solapamiento: Se implementa a nivel de servicio con transacción. Intervalos medio-abiertos [start_time, end_time) para evaluar colisiones.
+- Soft delete: Campo `deleted_at` en entidades clave. Todas las lecturas/listados deben excluir registros con `deleted_at` no nulo.
+- Multi-tenant: Todas las operaciones quedan acotadas por `company_id` extraído del JWT. Antes de operar, verificar que IDs (`role_id`, `company_employee_id`, `shift_id`) pertenezcan a la empresa del solicitante.
+- API y documentación: Respuesta estándar `{ success, data?, error?, meta? }`. Documentación con Swagger (OpenAPI 3) en `/api/docs` con autenticación Bearer JWT. Prefijo de rutas `/api/v1`.
+
+- Convención de nombres: usar snake_case de forma absoluta en base de datos, schema de Prisma, DTOs/validaciones, claims JWT, parámetros de query y JSON de la API.
+
 ---
 
 ### **Fase 2: Desarrollo del Backend (La Lógica)**
 
 **Objetivo:** Crear la API REST que permitirá al frontend interactuar con la base de datos de forma segura y estructurada.
 
-*   **Archivo 3: `02_PROMPT_BACKEND_CONFIGURACION_INICIAL.md`**
+*   **Archivo 3: `02_PROMPT_BACKEND_CONFIGURACION_INICIAL_TS_PRISMA.md`**
     *   **Tarea:** Configurar el proyecto Node.js/Express, la estructura de carpetas, instalar dependencias (`express`, `pg`, `bcryptjs`, `jsonwebtoken`, `dotenv`, `cors`) y establecer la conexión a la base de datos.
 
-*   **Archivo 4: `03_PROMPT_BACKEND_AUTENTICACION.md`**
+*   **Archivo 4: `03_PROMPT_BACKEND_AUTENTICACION_TS_PRISMA.md`**
     *   **Tarea:** Crear los endpoints para registrar una nueva empresa y su administrador (`POST /api/auth/register`) y para el inicio de sesión de todos los usuarios (`POST /api/auth/login`), generando un JWT.
 
-**Me quede en el archivo 5.
-*   **Archivo 5: `04_PROMPT_BACKEND_GESTION_EMPLEADOS_Y_ROLES.md`**
+**Me quedé en el archivo 5.**
+*   **Archivo 5: `04_PROMPT_BACKEND_GESTION_EQUIPO_ROBUSTA.md`**
     *   **Tarea:** Desarrollar los endpoints CRUD (Crear, Leer, Actualizar, Eliminar) para que un administrador gestione los roles y empleados de su propia empresa. Se debe implementar un middleware de autenticación para proteger estas rutas.
 
-*   **Archivo 6: `05_PROMPT_BACKEND_API_PLANILLA_DE_TURNOS.md`**
+*   **Archivo 6: `05_PROMPT_BACKEND_API_PLANILLA_DE_TURNOS_ROBUSTA.md`**
     *   **Tarea:** Implementar los endpoints CRUD para la gestión de turnos (`shifts`). Esto incluye obtener los turnos para un rango de fechas, y crear, actualizar o eliminar un turno específico.
 
 ---
@@ -87,9 +98,11 @@ Este documento es la guía maestra para el desarrollo de la aplicación. Describ
         ├── /backend  (Código fuente del backend)
         ├── /frontend (Código fuente del frontend)
         └── /prompts
-            ├── 00_ARQUITECTURA_Y_PLANO_MAESTRO_FINAL.md
+            ├── 00_ARQUITECTURA_BASE_DE_DATOS_FINAL.md
             ├── 01_PROMPT_MVP_BASE_DE_DATOS.md
-            ├── 02_PROMPT_BACKEND_CONFIGURACION_INICIAL.md
-            └── ... (y así sucesivamente)
+            ├── 02_PROMPT_BACKEND_CONFIGURACION_INICIAL_TS_PRISMA.md
+            ├── 03_PROMPT_BACKEND_AUTENTICACION_TS_PRISMA.md
+            ├── 04_PROMPT_BACKEND_GESTION_EQUIPO_ROBUSTA.md
+            └── 05_PROMPT_BACKEND_API_PLANILLA_DE_TURNOS_ROBUSTA.md
         ```
     *   **Commits Descriptivos:** Realizar un commit después de completar con éxito cada prompt. Ejemplo: `git commit -m "feat(backend): Implementa endpoints de autenticación según prompt 03"`

@@ -8,6 +8,13 @@ Actúa como un arquitecto de bases de datos experto, especializado en PostgreSQL
 
 El diseño debe ser un subconjunto de una arquitectura más grande y robusta, asegurando la compatibilidad futura. Todos los nombres de tablas, columnas y tipos deben estar en inglés.
 
+## Notas de Alcance y Alineación (MVP)
+
+- La implementación real usará Prisma como fuente de verdad del esquema y migraciones. Este SQL sirve como referencia funcional.
+- Política de turnos: Se permiten múltiples turnos por empleado por día. No se permiten turnos overnight (rechazar si `end_time <= start_time`).
+- Validación de solapamiento: Se realizará en la aplicación (servicio) con transacción, evitando intersecciones de intervalos [start_time, end_time) para el mismo empleado y fecha.
+- Índices recomendados: Añadir índice en `shifts` por `(company_employee_id, shift_date)` para acelerar consultas por día/empleado.
+
 ## Requisitos del Esquema MVP
 
 ### 1. Tipos de Datos Personalizados
@@ -111,6 +118,12 @@ CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON roles FOR EACH ROW EXECU
 CREATE TRIGGER update_company_employees_updated_at BEFORE UPDATE ON company_employees FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_shifts_updated_at BEFORE UPDATE ON shifts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
+
+### 4. Índices recomendados y Notas MVP
+
+- Incluir en el script SQL un índice en `shifts` por `(company_employee_id, shift_date)`.
+- No definir unicidad diaria en `shifts` (se permiten múltiples turnos por día). La validación de no solapamiento se hará en el servicio.
+- Añadir una restricción `CHECK (end_time > start_time)` para reforzar que no haya overnight en el MVP.
 
 Por favor, genera el script SQL completo y ordenado para ejecutar esta creación del esquema del MVP.
 ```
