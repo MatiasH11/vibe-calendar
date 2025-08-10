@@ -7,6 +7,8 @@ import { HTTP_CODES } from './constants/http_codes';
 import { error_handler } from './middlewares/error_handler';
 import { swaggerUiMiddleware } from './config/swagger';
 import authRouter from './routes/auth.routes';
+import roleRouter from './routes/role.routes';
+import employeeRouter from './routes/employee.routes';
 
 const app: Express = express();
 
@@ -49,6 +51,8 @@ app.get('/api/v1/health', async (req: Request, res: Response) => {
 
 // Registrar aquí las rutas de la aplicación (ej. /api/v1/auth, /api/v1/roles, ...)
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/roles', roleRouter);
+app.use('/api/v1/employees', employeeRouter);
 
 // Global Error Handler (debe ser el último middleware)
 app.use(error_handler);
