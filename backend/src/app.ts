@@ -9,6 +9,7 @@ import { swaggerUiMiddleware } from './config/swagger';
 import authRouter from './routes/auth.routes';
 import roleRouter from './routes/role.routes';
 import employeeRouter from './routes/employee.routes';
+import shiftRouter from './routes/shift.routes';
 
 const app: Express = express();
 
@@ -53,6 +54,7 @@ app.get('/api/v1/health', async (req: Request, res: Response) => {
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/roles', roleRouter);
 app.use('/api/v1/employees', employeeRouter);
+app.use('/api/v1/shifts', shiftRouter);
 
 // Global Error Handler (debe ser el último middleware)
 app.use(error_handler);

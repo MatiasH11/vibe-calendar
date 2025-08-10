@@ -25,9 +25,17 @@ const router = Router();
  *               name: { type: string }
  *               description: { type: string }
  *               color: { type: string }
+ *           examples:
+ *             example-1:
+ *               value: { name: "Cashier", description: "Handles payments", color: "#FFD700" }
  *     responses:
  *       201:
  *         description: Created
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: { id: 2, company_id: 1, name: "Cashier", description: "Handles payments", color: "#FFD700" }
  *       409:
  *         description: Conflict
  */
@@ -44,6 +52,11 @@ router.post('/', authMiddleware, adminMiddleware, validate_body(create_role_sche
  *     responses:
  *       200:
  *         description: OK
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: [ { id: 1, name: "Admin" }, { id: 2, name: "Cashier" } ]
  */
 router.get('/', authMiddleware, adminMiddleware, getRolesHandler);
 

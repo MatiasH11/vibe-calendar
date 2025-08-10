@@ -27,9 +27,17 @@ const router = Router();
  *               last_name: { type: string }
  *               role_id: { type: number }
  *               position: { type: string }
+ *           examples:
+ *             example-1:
+ *               value: { email: "emp1@example.com", first_name: "Emp", last_name: "One", role_id: 2, position: "Staff" }
  *     responses:
  *       201:
  *         description: Created
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: { id: 5, company_id: 1, user_id: 10, role_id: 2, position: "Staff", user: { id: 10, email: "emp1@example.com" }, role: { id: 2, name: "Cashier" } }
  *       409:
  *         description: Conflict
  */
@@ -46,6 +54,11 @@ router.post('/', authMiddleware, adminMiddleware, validate_body(add_employee_sch
  *     responses:
  *       200:
  *         description: OK
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: [ { id: 5, position: "Staff", user: { email: "emp1@example.com" }, role: { name: "Cashier" } } ]
  */
 router.get('/', authMiddleware, adminMiddleware, getEmployeesHandler);
 

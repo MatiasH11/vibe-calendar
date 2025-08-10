@@ -16,16 +16,24 @@ const router = Router();
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               company_name: { type: string }
- *               first_name: { type: string }
- *               last_name: { type: string }
- *               email: { type: string, format: email }
- *               password: { type: string, minLength: 8 }
+ *             $ref: '#/components/schemas/auth_register_body'
+ *           examples:
+ *             example-1:
+ *               summary: Registro básico
+ *               value:
+ *                 company_name: "TestCo"
+ *                 first_name: "Matias"
+ *                 last_name: "Hidalgo"
+ *                 email: "admin@example.com"
+ *                 password: "Chatwoot1!"
  *     responses:
  *       201:
  *         description: Created
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: { company_id: 1, user_id: 1, role_id: 1, employee_id: 1 }
  *       409:
  *         description: Conflict
  */
@@ -42,13 +50,21 @@ router.post('/register', validate_body(register_schema), register_handler);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               email: { type: string, format: email }
- *               password: { type: string }
+ *             $ref: '#/components/schemas/auth_login_body'
+ *           examples:
+ *             example-1:
+ *               summary: Login básico
+ *               value:
+ *                 email: "admin@example.com"
+ *                 password: "Chatwoot1!"
  *     responses:
  *       200:
  *         description: OK
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: { token: "<jwt>" }
  *       401:
  *         description: Unauthorized
  */
