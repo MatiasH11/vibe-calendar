@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum shift_status {
+  draft
+  confirmed
+  cancelled
+}
+
+model company {
+  id          Int       @id @default(autoincrement())
+  name        String
+  business_name String?
+  email       String    @unique
+  phone       String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  roles               role[]
+  company_employees   company_employee[]
+}
+
+model user {
+  id           Int       @id @default(autoincrement())
+  first_name   String
+  last_name    String
+  email        String    @unique
+  password_hash String
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  deleted_at   DateTime?
+
+  company_employees company_employee[]
+}
+
+model role {
+  id          Int      @id @default(autoincrement())
+  company_id  Int
+  name        String
+  description String?
+  color       String   @default("#FFFFFF")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  company company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  employees company_employee[]
+
+  @@unique([company_id, name])
+}
+
+model company_employee {
+  id          Int      @id @default(autoincrement())
+  company_id  Int
+  user_id     Int
+  role_id     Int
+  position    String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  deleted_at  DateTime?
+
+  company company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user    user    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role    role    @relation(fields: [role_id], references: [id], onDelete: Restrict)
+  shifts  shift[]
+
+  @@unique([company_id, user_id])
+}
+
+model shift {
+  id                   Int      @id @default(autoincrement())
+  company_employee_id  Int
+  shift_date           DateTime @db.Date
+  start_time           DateTime @db.Time
+  end_time             DateTime @db.Time
+  notes                String?
+  status               shift_status @default(confirmed)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+  deleted_at           DateTime?
+
+  company_employee company_employee @relation(fields: [company_employee_id], references: [id], onDelete: Cascade)
+
+  @@index([company_employee_id, shift_date])
+}
+
+
