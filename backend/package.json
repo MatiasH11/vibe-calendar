@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/app.js",
     "build": "tsc",
-    "dev": "nodemon --watch 'src/**/*.ts' --ignore '**/*.test.ts' --exec 'ts-node --transpile-only' src/server.ts",
+    "dev": "nodemon --watch src --ext ts,json --ignore \"**/*.test.ts\" --exec \"ts-node --transpile-only\" src/server.ts",
     "test": "jest --detectOpenHandles --runInBand",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
