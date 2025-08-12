@@ -56,10 +56,13 @@ Este documento es la guía maestra para el desarrollo de la aplicación. Describ
     *   **Tarea:** Generar los componentes y páginas para el registro de una nueva empresa y para el inicio de sesión de los usuarios.
 
 *   **Archivo 8: `07_PROMPT_FRONTEND_DASHBOARD_Y_NAVEGACION.md`**
-    *   **Tarea:** Crear el layout principal (dashboard) para un usuario autenticado, incluyendo la navegación principal para acceder a las diferentes secciones (Planilla, Equipo, etc.).
+    *   **Tarea:** Crear el layout principal (dashboard) para un usuario autenticado, incluyendo la navegación principal para acceder a las diferentes secciones (Planilla, Equipo, etc.). Además, configurar `providers/QueryProvider.tsx` y `providers/AppProviders.tsx`, y envolver `/(app)/layout.tsx` con `<AppProviders>`.
+
+*   **Archivo 8.1: `07.1_PROMPT_FRONTEND_STATE_MANAGEMENT_SETUP.md`**
+    *   **Tarea:** Configurar la infraestructura de gestión de estado: `@tanstack/react-query` (cache/invalidación, DevTools) y `zustand` (estado UI), crear `providers/`, `stores/` y `hooks/` base, y preparar optimistic updates e hidratación SSR para la planilla.
 
 *   **Archivo 9: `08_PROMPT_FRONTEND_PLANILLA_SEMANAL_INTERACTIVA.md`**
-    *   **Tarea:** Diseñar y construir el componente central de la aplicación: la grilla de la planilla semanal. Debe mostrar a los empleados en filas y los días en columnas, y permitir al administrador hacer clic en una celda para asignar un turno (introduciendo hora de inicio y fin).
+    *   **Tarea:** Diseñar y construir el componente central de la aplicación: la grilla de la planilla semanal. Debe mostrar a los empleados en filas y los días en columnas, y permitir al administrador hacer clic en una celda para asignar un turno (introduciendo hora de inicio y fin). Usar React Query para cachear turnos por semana y Zustand para estado de UI; incluir hooks y mutaciones optimistas.
 
 *   **Archivo 10: `09_PROMPT_FRONTEND_GESTION_EQUIPO.md`**
     *   **Tarea:** Crear las interfaces (tablas, formularios, modales) para que el administrador pueda gestionar a sus empleados y los roles de la empresa.
