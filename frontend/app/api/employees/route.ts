@@ -13,4 +13,20 @@ export async function GET() {
   return new Response(body, { status: res.status, headers: { 'Content-Type': 'application/json' } });
 }
 
+export async function POST(request: Request) {
+  const token = cookies().get('auth_token')?.value;
+  if (!token) {
+    return new Response(JSON.stringify({ success: false, error: { error_code: 'UNAUTHORIZED', message: 'Missing token' } }), { status: 401 });
+  }
+  const body = await request.text();
+  const res = await fetch(`${process.env.API_BASE_URL}/api/v1/employees`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body,
+    cache: 'no-store',
+  });
+  const out = await res.text();
+  return new Response(out, { status: res.status, headers: { 'Content-Type': 'application/json' } });
+}
+
 

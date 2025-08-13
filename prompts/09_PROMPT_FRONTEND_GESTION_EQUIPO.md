@@ -1,5 +1,19 @@
 ### **Archivo 10: `09_PROMPT_FRONTEND_GESTION_EQUIPO.md`**
 
+### Actualización tras completar 08 (Planilla)
+
+Esta sección actualiza el alcance del prompt 09 para alinearlo con los patrones consolidados en la planilla semanal (archivo 08):
+
+- Patrones técnicos: SSR opcional + React Query con `initialData`, toasts `sonner`, DTOs en `snake_case`, contrato `StandardResponse`, Route Handlers en server con token desde cookie HttpOnly.
+- Cambios requeridos:
+  - `app/api/roles/route.ts`: crear GET/POST (proxy a backend) con propagación de status y `{ success, data, error }`.
+  - `app/api/employees/route.ts`: extender con POST además del GET existente.
+  - Páginas `/(app)/equipo/roles` y `/(app)/equipo/empleados`: SSR opcional para precarga y componentes cliente con React Query (`['roles']`, `['employees']`).
+  - Componentes: `RoleTable`, `RoleCreateDialog`, `EmployeeTable`, `EmployeeCreateDialog` con formularios `react-hook-form + zod`, loading/disabled y toasts.
+  - Manejo de errores mapeando `error.error_code`: `DUPLICATE_ROLE`, `EMPLOYEE_ALREADY_EXISTS`, `UNAUTHORIZED_COMPANY_ACCESS` y `UNAUTHORIZED`/`FORBIDDEN`.
+  - Criterios de aceptación: refresco sin recarga mediante invalidación de queries, estados vacíos claros, seguridad sin exponer `API_BASE_URL` al cliente.
+
+
 **Propósito:** Implementar la UI de Gestión de Equipo para Roles y Empleados con Next.js App Router, Tailwind y shadcn/ui, integrando Route Handlers como proxy seguro al backend (JWT en cookie HttpOnly).
 
 # Prompt: Frontend - Gestión de Equipo (Roles y Empleados)
