@@ -44,6 +44,11 @@ export default function ShiftEditorDialog({ open, onOpenChange, mode, base, shif
   });
 
   const handleSubmit = form.handleSubmit(async (values) => {
+    // Validación suave: end_time > start_time
+    if (values.end_time <= values.start_time) {
+      form.setError('end_time', { type: 'manual', message: 'La hora fin debe ser mayor que la hora inicio' });
+      return;
+    }
     if (mode === 'create' && onCreate) {
       await onCreate(values);
       onOpenChange(false);
@@ -70,6 +75,7 @@ export default function ShiftEditorDialog({ open, onOpenChange, mode, base, shif
           <Dialog.Title className="text-lg font-semibold mb-2">{mode === 'create' ? 'Nuevo turno' : 'Editar turno'}</Dialog.Title>
           <Form {...form}>
             <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="text-sm text-neutral-600">Fecha: {mode === 'create' ? base?.date : shift?.shift_date}</div>
               <FormField name="start_time" control={form.control} render={({ field }) => (
                 <FormItem>
                   <FormLabel>Hora inicio (HH:mm)</FormLabel>
@@ -97,7 +103,7 @@ export default function ShiftEditorDialog({ open, onOpenChange, mode, base, shif
                 ) : <div />}
                 <div className="flex gap-2 ml-auto">
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                  <Button type="submit">Guardar</Button>
+                  <Button type="submit" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? 'Guardando…' : 'Guardar'}</Button>
                 </div>
               </div>
             </form>

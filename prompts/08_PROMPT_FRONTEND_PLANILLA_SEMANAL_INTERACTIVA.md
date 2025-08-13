@@ -4,14 +4,19 @@
 
 # Prompt: Frontend - Planilla Semanal Interactiva (Next.js, Tailwind, shadcn/ui)
 
-Actúa como Frontend Lead. Implementa la grilla semanal de turnos con creación/edición/eliminación desde la UI, proxy seguro al backend y normalización de formatos de fecha/hora.
+Actúa como Frontend Lead. Implementa la grilla semanal de turnos con creación/edición/eliminación desde la UI, proxy seguro al backend y normalización de formatos de fecha/hora. Debe funcionar con datos reales y manejar estados vacíos.
+
+## Pre-requisitos de datos (desarrollo)
+- Opción A (recomendada): ejecutar un seed en backend para crear 1–2 `roles`, 2–3 `employees` y 3–6 `shifts` en la semana actual.
+- Opción B: continuar sin seed y verificar “empty states” (sin empleados/turnos) en la UI.
+- Mantener `shift_date` en `YYYY-MM-DD` y `start_time`/`end_time` en `HH:mm`.
 
 ## Objetivo
 - Página `/planilla` dentro de `/(app)` con:
   - Cabecera con días de la semana, filas por empleado.
   - Crear turno clicando en celda vacía.
   - Editar/eliminar turno existente.
-  - Navegar semanas (anterior, siguiente, hoy).
+  - Navegar semanas (anterior, siguiente, hoy) y sincronizar con la URL.
 - Integración robusta con backend:
   - Route Handlers (server) que adjuntan `Authorization: Bearer <token>` desde cookie `auth_token`.
   - Normalizan `shift_date` a `YYYY-MM-DD` y `start_time`/`end_time` a `HH:mm`.
@@ -21,20 +26,21 @@ Actúa como Frontend Lead. Implementa la grilla semanal de turnos con creación/
 - UI con Tailwind + componentes `shadcn/ui` (+ `sonner` para toasts).
 - `date-fns` para manipular semanas y formatos.
 - Mantener snake_case en DTOs con el backend.
+- SSR opcional para datos iniciales; usar React Query en cliente para refrescos y mutaciones.
 
 ## Gestión de Estado
 - `@tanstack/react-query` para cache y sincronización de datos del servidor:
-  - Cache de empleados con `useQuery(['employees'])`
-  - Cache de turnos por semana con `useQuery(['shifts', startDate, endDate])`
-  - Mutaciones optimistas para crear/editar/eliminar turnos (invalidar `['shifts', startDate, endDate]`)
-- `zustand` para estado local del UI:
-  - Semana seleccionada
-  - Empleado/celda en edición
-  - Estados de loading/error locales
+  - Cache de empleados (SSR o `useQuery(['employees'])`).
+  - Cache de turnos por semana con `useQuery(['shifts', startDate, endDate])`.
+  - Mutaciones optimistas para crear/editar/eliminar turnos (invalidar `['shifts', startDate, endDate]`).
+- `zustand` para estado local del UI (opcional):
+  - Semana seleccionada (si no se usa solo el hook `useWeekNavigation`).
+  - Empleado/celda en edición.
+  - Estados de loading/error locales.
 - Hooks customizados:
-  - `useShifts(startDate, endDate)` - manejo completo de turnos
-  - `useShiftMutations({ startDate, endDate })` - CRUD con optimistic updates
-  - `useWeekNavigation()` - navegación entre semanas
+  - `useShifts(startDate, endDate)` - manejo completo de turnos.
+  - `useShiftMutations({ startDate, endDate })` - CRUD con optimistic updates e invalidación.
+  - `useWeekNavigation()` - navegación entre semanas.
 
 ## Estructura (añadir a lo ya creado en 06 y 07)
 ```
@@ -85,6 +91,7 @@ lib/
   - Normalizar formatos de respuesta para `Shift`:
     - `shift_date` → `YYYY-MM-DD`
     - `start_time`/`end_time` → `HH:mm`
+- Manejar y propagar errores (`SHIFT_OVERLAP`, `OVERNIGHT_NOT_ALLOWED`, `UNAUTHORIZED_COMPANY_ACCESS`) con sus códigos.
 
 ### app/api/employees/route.ts (GET)
 - Proxy a `GET ${API_BASE_URL}/api/v1/employees`.
@@ -94,57 +101,72 @@ lib/
 - GET: acepta `start_date`, `end_date` (strings `YYYY-MM-DD`).
 - POST: body `{ company_employee_id: number; shift_date: string; start_time: string; end_time: string; notes?: string }`.
 - Normalizar tiempos en la respuesta a `HH:mm`.
-- Manejar y propagar errores (`SHIFT_OVERLAP`, `OVERNIGHT_NOT_ALLOWED`, `UNAUTHORIZED_COMPANY_ACCESS`) con sus códigos.
 
 ### app/api/shifts/[id]/route.ts
 - PUT: body parcial `{ shift_date?: string; start_time?: string; end_time?: string; notes?: string }`
 - DELETE: sin body.
 
 ## Página `/(app)/planilla/page.tsx` (Server Component)
-- Determinar semana base (por defecto, actual) vía `searchParams` opcional `?w=YYYY-Www`.
+- Determinar semana base vía `searchParams`:
+  - Preferido: `?w=YYYY-Www` (ISO week).
+  - Alternativa: `?start_date=YYYY-MM-DD` (lunes).
 - Calcular `start_date` y `end_date`.
-- Hacer fetch server-side a:
+- Fetch server-side a:
   - `GET /app/api/employees`
-  - `GET /app/api/shifts?start_date&end_date`
-- Pasar a `WeeklyGrid` (Client) los arrays serializados y el rango de fechas.
+  - `GET /app/api/shifts?start_date&end_date` (opcional, para `initialData`).
+- Pasar a `WeeklyGrid`:
+  - `employees` (array serializado)
+  - `start_date` (lunes de la semana)
+  - `initial_shifts?` (opcional; usar como `initialData` de React Query)
 
 ## Componentes
 ### WeeklyGrid.tsx (Client)
-- Props: `employees: Employee[]`, `shifts: Shift[]`, `start_date: string` (lunes), `end_date: string` (domingo).
-- Estado:
-  - Semana actual (para navegación).
-  - Dataset de `shifts` (puede refrescarse tras mutaciones).
+- Props:
+  - `employees: Employee[]`
+  - `start_date: string` (lunes, `YYYY-MM-DD`)
+  - `initial_shifts?: Shift[]` (opcional)
+- Estado/Hook:
+  - `useWeekNavigation()` para obtener `startDate`, `endDate` y acciones `goPrev`, `goNext`, `goToday` (inicializar con `start_date`).
+  - `useShifts(startDate, endDate)` para cargar turnos (usar `initial_shifts` como `initialData` si se provee).
 - Render:
   - Cabecera con los 7 días.
+  - Barra de acciones con botones “Semana anterior”, “Hoy”, “Siguiente semana”.
   - Filas por empleado (`EmployeeRow`).
-- Acciones:
-  - Botones “Semana anterior”, “Hoy”, “Siguiente semana”.
-  - Handlers `onCreateShift`, `onUpdateShift`, `onDeleteShift` que llaman a los route handlers correspondientes y refrescan datos.
-- UX:
-  - Toasts con `sonner` para success/error.
-  - Loading states en acciones.
+- Navegación/URL:
+  - Al cambiar de semana, actualizar `?w=YYYY-Www` con `router.replace` para compartir estado.
+- Empty states:
+  - Si `employees.length === 0`: mostrar mensaje “No hay empleados aún” y deshabilitar acciones de turno.
+  - Si hay empleados pero `shifts` vacío: mostrar “Añadir” en celdas.
+- Loading/Error:
+  - Mostrar indicador mientras carga `useShifts`.
+  - En error, mostrar mensaje y botón reintentar.
 
 ### EmployeeRow.tsx
-- Props: `employee: Employee`, `days: string[]`, `shifts: Shift[]`, callbacks de CRUD.
+- Props: `employee: Employee`, `weekStart: string`, `shifts: Shift[]`, callbacks de CRUD.
 - Mapea `shifts` del empleado por día; para cada celda:
   - Si vacío: click abre `ShiftEditorDialog` (modo crear).
   - Si hay turno: renderiza `ShiftItem` con click para editar.
+- CRUD:
+  - Usar `useShiftMutations({ startDate, endDate })` para crear/editar/eliminar.
+  - Tras mutaciones, cerrar diálogo y mostrar toast.
 
 ### ShiftItem.tsx
 - Muestra `start_time–end_time`, `notes` abreviado.
 - OnClick → abrir `ShiftEditorDialog` (modo editar) con opción eliminar.
 
 ### ShiftEditorDialog.tsx
-- Formulario con `react-hook-form` + Zod validation:
-  - `shift_date` prellenado (celda clickeada).
-  - `start_time`, `end_time` con patrón `HH:mm`.
+- Formulario con `react-hook-form` + Zod:
+  - `shift_date` prellenado (read-only en UI).
+  - `start_time`, `end_time` con patrón `HH:mm`, validación suave: `end_time > start_time` (mostrar mensaje si no).
   - `notes` opcional.
 - Botones Guardar/Cancelar; mientras guarda, disabled.
 - En editar, botón Eliminar con confirmación.
+- Mensajería:
+  - Mostrar toasts de éxito/error con `sonner`.
 
 ## Validaciones en Cliente (suaves)
-- Enviar siempre en `HH:mm` y `YYYY-MM-DD`.
-- Prevenir claramente `end_time <= start_time` (mostrar mensaje antes de enviar).
+- Enviar siempre `HH:mm` y `YYYY-MM-DD`.
+- Prevenir `end_time <= start_time` (bloquear submit y mostrar mensaje).
 - Recordatorio: el backend es la autoridad final (puede devolver `SHIFT_OVERLAP`).
 
 ## Errores y Mensajes
@@ -152,6 +174,7 @@ lib/
 - `OVERNIGHT_NOT_ALLOWED` → “No se permiten turnos que crucen medianoche.”
 - `UNAUTHORIZED`/`FORBIDDEN` → “Tu sesión expiró o no tienes permisos.”
 - Mostrar mensajes backend `error.message` si existen.
+- Mostrar `toast.success` en create/update/delete exitosos.
 
 ## Seguridad y Red
 - Nunca exponer `API_BASE_URL` en el cliente.
@@ -161,22 +184,33 @@ lib/
 ## Accesibilidad y Responsividad
 - Cabecera sticky, columna de empleados legible en móvil (scroll horizontal).
 - Diálogo accesible (focus trap, `aria-*`).
+- Click targets adecuados en celdas y items de turno.
+
+## Estados Vacíos (Empty States)
+- Sin empleados: mensaje guía para crear empleados (se realizará en fase 09).
+- Con empleados y sin turnos: mostrar “Añadir” en celdas y ayuda contextual breve.
+
+## Seed de Desarrollo (opcional)
+- Ejecutar un seed local que cree:
+  - 1–2 `roles`, 2–3 `employees` y 3–6 `shifts` en la semana actual.
+- Debe ser idempotente y acotado a la empresa de desarrollo.
 
 ## Salida Esperada
-- `app/(app)/planilla/page.tsx`
-- `components/planilla/WeeklyGrid.tsx`
-- `components/planilla/EmployeeRow.tsx`
-- `components/planilla/ShiftItem.tsx`
-- `components/planilla/ShiftEditorDialog.tsx`
-- `app/api/employees/route.ts`
-- `app/api/shifts/route.ts`
-- `app/api/shifts/[id]/route.ts`
-- `lib/date.ts`
-- `lib/types.ts`
+- `app/(app)/planilla/page.tsx` (actualizar)
+- `components/planilla/WeeklyGrid.tsx` (actualizar)
+- `components/planilla/EmployeeRow.tsx` (actualizar)
+- `components/planilla/ShiftItem.tsx` (usar desde `EmployeeRow`)
+- `components/planilla/ShiftEditorDialog.tsx` (actualizar validaciones y UX)
+- `app/api/employees/route.ts` (sin cambios o normalización menor)
+- `app/api/shifts/route.ts` (sin cambios o normalización menor)
+- `app/api/shifts/[id]/route.ts` (sin cambios)
+- `lib/date.ts` (sin cambios)
+- `lib/types.ts` (sin cambios)
 
-## Notas
-- Usar `sonner` para feedback.
-- Mantener snake_case en JSON hacia/desde backend.
-- Devolver `StandardResponse<T>` desde Route Handlers.
+## Criterios de Aceptación
+- Navegación semanal funcional con sincronización en URL.
+- La grilla usa `useShifts` y refleja cambios tras mutaciones sin recargar.
+- Validación cliente activa y mensajes de backend propagados con toasts.
+- Estados vacíos claros y sin errores de consola.
 
 

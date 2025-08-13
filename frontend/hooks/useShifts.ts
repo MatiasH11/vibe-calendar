@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Shift, StandardResponse } from '@/lib/types';
 
-export function useShifts(startDate: string, endDate: string) {
+export function useShifts(startDate: string, endDate: string, options?: { initialData?: Shift[] }) {
   return useQuery<Shift[]>({
     queryKey: ['shifts', startDate, endDate],
     queryFn: async () => {
@@ -14,6 +14,7 @@ export function useShifts(startDate: string, endDate: string) {
     },
     enabled: Boolean(startDate && endDate),
     staleTime: 30 * 1000,
+    initialData: options?.initialData,
   });
 }
 

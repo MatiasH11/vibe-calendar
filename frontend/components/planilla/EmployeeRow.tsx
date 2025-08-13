@@ -4,6 +4,7 @@ import { Employee, Shift } from '@/lib/types';
 import { daysOfWeek, formatYmd } from '@/lib/date';
 import { useMemo, useState } from 'react';
 import ShiftEditorDialog from './ShiftEditorDialog';
+import ShiftItem from './ShiftItem';
 import { useShiftMutations } from '@/hooks/useShiftMutations';
 
 type Props = {
@@ -56,10 +57,10 @@ export default function EmployeeRow({ employee, weekStart, shifts }: Props) {
                 {list.map((s) => (
                   <li key={s.id}>
                     <button
-                      className="rounded border px-2 py-1 text-left hover:bg-neutral-50 w-full"
+                      className="w-full text-left hover:bg-neutral-50 rounded"
                       onClick={() => { setMode('edit'); setEditing(s); setOpen(true); }}
                     >
-                      {s.start_time}–{s.end_time}
+                      <ShiftItem shift={s} />
                     </button>
                   </li>
                 ))}

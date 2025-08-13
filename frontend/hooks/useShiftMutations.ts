@@ -39,6 +39,9 @@ export function useShiftMutations({ startDate, endDate }: { startDate: string; e
       if (ctx?.prev) qc.setQueryData(key, ctx.prev);
       toast.error((err as Error).message);
     },
+    onSuccess: () => {
+      toast.success('Turno creado');
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: key });
     },
@@ -55,6 +58,9 @@ export function useShiftMutations({ startDate, endDate }: { startDate: string; e
       if (!json.success) throw new Error(json.error?.message || 'Error al actualizar turno');
       return json.data!;
     },
+    onSuccess: () => {
+      toast.success('Turno actualizado');
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
 
@@ -63,6 +69,9 @@ export function useShiftMutations({ startDate, endDate }: { startDate: string; e
       const res = await fetch(`/api/shifts/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Error al eliminar turno');
       return true;
+    },
+    onSuccess: () => {
+      toast.success('Turno eliminado');
     },
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
