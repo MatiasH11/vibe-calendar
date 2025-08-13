@@ -27,6 +27,9 @@
       "@/app/*": [
         "./app/*"
       ],
+      "@/hooks/*": [
+        "./hooks/*"
+      ],
       "@/providers/*": [
         "./providers/*"
       ]
