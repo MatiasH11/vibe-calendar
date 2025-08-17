@@ -9,7 +9,7 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(() => createQueryClient());
   return (
     <QueryClientProvider client={client}>
-      <HydrationBoundary>{children}</HydrationBoundary>
+      <HydrationBoundary state={{ mutations: [], queries: [] }}>{children}</HydrationBoundary>
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );

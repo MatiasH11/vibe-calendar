@@ -1,17 +1,15 @@
+'use client';
+
 import '@/app/globals.css';
-import Sidebar from '@/components/navigation/Sidebar';
-import Topbar from '@/components/navigation/Topbar';
 import AppProviders from '@/providers/AppProviders';
 
+// Layout simplificado después del reseteo de UI
+// Mantiene la infraestructura de providers pero elimina navegación compleja
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppProviders>
-      <div className="min-h-screen flex">
-        <Sidebar />
-        <div className="flex-1 min-h-screen flex flex-col">
-          <Topbar />
-          <main className="flex-1 p-4">{children}</main>
-        </div>
+      <div className="min-h-screen">
+        <main className="p-4">{children}</main>
       </div>
     </AppProviders>
   );

@@ -32,6 +32,12 @@
       ],
       "@/providers/*": [
         "./providers/*"
+      ],
+      "@/stores/*": [
+        "./stores/*"
+      ],
+      "@/styles/*": [
+        "./styles/*"
       ]
     },
     "types": [],

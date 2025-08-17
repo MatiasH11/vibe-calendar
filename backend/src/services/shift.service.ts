@@ -1,7 +1,16 @@
 import { prisma } from '../config/prisma_client';
 import { create_shift_body, get_shifts_query, update_shift_body } from '../validations/shift.validation';
 
-const toTime = (hhmm: string): string => hhmm; // stored as TIME in DB via Prisma @db.Time
+const toTime = (hhmm: string): Date => {
+  // Para PostgreSQL TIME con Prisma, necesitamos crear un DateTime completo
+  // Prisma extraerá la parte de tiempo automáticamente
+  if (hhmm.match(/^\d{2}:\d{2}$/)) {
+    // Crear un DateTime con fecha fija (1970-01-01) y la hora específica
+    return new Date(`1970-01-01T${hhmm}:00.000Z`);
+  }
+  // Si ya es un formato de tiempo completo, intentar parsearlo
+  return new Date(`1970-01-01T${hhmm}.000Z`);
+};
 
 const timeLess = (a: string, b: string) => a < b;
 const overlap = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
@@ -39,7 +48,7 @@ export const shift_service = {
       for (const s of existing) {
         const sStart = s.start_time as unknown as string;
         const sEnd = s.end_time as unknown as string;
-        if (overlap(newStart, newEnd, sStart, sEnd)) {
+        if (overlap(data.start_time, data.end_time, sStart, sEnd)) {
           throw new Error('SHIFT_OVERLAP');
         }
       }
@@ -48,8 +57,8 @@ export const shift_service = {
         data: {
           company_employee_id: data.company_employee_id,
           shift_date: new Date(data.shift_date),
-          start_time: newStart as any,
-          end_time: newEnd as any,
+          start_time: newStart,
+          end_time: newEnd,
           notes: data.notes,
         },
       });
@@ -115,8 +124,8 @@ export const shift_service = {
         where: { id: shift_id },
         data: {
           shift_date: nextDate,
-          start_time: nextStart as any,
-          end_time: nextEnd as any,
+          start_time: data.start_time ? toTime(data.start_time) : undefined,
+          end_time: data.end_time ? toTime(data.end_time) : undefined,
           notes: data.notes ?? undefined,
         },
       });

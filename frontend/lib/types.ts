@@ -34,6 +34,39 @@ export type Shift = {
   status?: 'draft' | 'confirmed' | 'cancelled';
 };
 
+// Tipos para el sistema de planilla mejorado
+export type ShiftType = 'morning' | 'afternoon' | 'night' | 'full' | 'custom';
+
+export type ShiftTypeConfig = {
+  code: string;
+  label: string;
+  time: string;
+  color: string;
+};
+
+export type DraggedShift = Shift & {
+  sourceEmployeeId: number;
+  sourceDay: number;
+};
+
+export type CellPosition = {
+  employeeId: number;
+  day: number;
+};
+
+export type PlanillaFilters = {
+  searchEmployee: string;
+  filterRole: string;
+  filterShiftType: string;
+  filterDay: string;
+};
+
+export type CustomShiftData = {
+  code: string;
+  startTime: string;
+  endTime: string;
+};
+
 export type StandardResponse<T> = {
   success: boolean;
   data?: T;
