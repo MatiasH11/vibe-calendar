@@ -7,9 +7,11 @@ import { EmptyShiftCell } from './EmptyShiftCell';
 interface ShiftGridBodyProps {
   employees: EmployeeWithShifts[];
   weekData: WeekViewData;
+  onEditShift?: (shift: any) => void;
+  onCreateShift?: (employeeId: number, date: string) => void;
 }
 
-export function ShiftGridBody({ employees, weekData }: ShiftGridBodyProps) {
+export function ShiftGridBody({ employees, weekData, onEditShift, onCreateShift }: ShiftGridBodyProps) {
   return (
     <div className="divide-y">
       {employees.map((employee) => (
@@ -53,6 +55,7 @@ export function ShiftGridBody({ employees, weekData }: ShiftGridBodyProps) {
                         shift={shift}
                         employee={employee}
                         day={day}
+                        onEdit={onEditShift}
                       />
                     ))}
                   </div>
@@ -61,6 +64,7 @@ export function ShiftGridBody({ employees, weekData }: ShiftGridBodyProps) {
                     employeeId={employee.id}
                     date={day.date}
                     roleColor={employee.role.color}
+                    onCreate={onCreateShift}
                   />
                 )}
               </div>

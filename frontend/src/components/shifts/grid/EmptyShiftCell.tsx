@@ -6,12 +6,14 @@ interface EmptyShiftCellProps {
   employeeId: number;
   date: string;
   roleColor: string;
+  onCreate?: (employeeId: number, date: string) => void;
 }
 
-export function EmptyShiftCell({ employeeId, date, roleColor }: EmptyShiftCellProps) {
+export function EmptyShiftCell({ employeeId, date, roleColor, onCreate }: EmptyShiftCellProps) {
   const handleClick = () => {
-    // TODO: Implementar creación de turno
-    console.log('Create shift for employee:', employeeId, 'date:', date);
+    if (onCreate) {
+      onCreate(employeeId, date);
+    }
   };
 
   return (

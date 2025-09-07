@@ -9,14 +9,16 @@ interface ShiftCellProps {
   shift: Shift;
   employee: EmployeeWithShifts;
   day: DayData;
+  onEdit?: (shift: Shift) => void;
 }
 
-export function ShiftCell({ shift, employee, day }: ShiftCellProps) {
+export function ShiftCell({ shift, employee, day, onEdit }: ShiftCellProps) {
   const roleColorClass = ROLE_COLORS[employee.role.name as keyof typeof ROLE_COLORS] || ROLE_COLORS.default;
   
   const handleClick = () => {
-    // TODO: Implementar click handler
-    console.log('Shift clicked:', shift);
+    if (onEdit) {
+      onEdit(shift);
+    }
   };
 
   return (

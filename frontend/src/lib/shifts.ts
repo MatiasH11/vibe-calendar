@@ -26,11 +26,20 @@ export class ShiftsApiService {
   }
 
   async createShift(data: CreateShiftRequest): Promise<Shift> {
-    const response = await apiClient.requestGeneric<{ success: boolean; data: Shift }>('/api/v1/shifts', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    return response.data!;
+    console.log('🔍 ShiftsApiService.createShift called with:', data);
+    
+    try {
+      const response = await apiClient.requestGeneric<{ success: boolean; data: Shift }>('/api/v1/shifts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      
+      console.log('✅ ShiftsApiService.createShift response:', response);
+      return response.data!;
+    } catch (error) {
+      console.error('❌ ShiftsApiService.createShift error:', error);
+      throw error;
+    }
   }
 
   async updateShift(id: number, data: UpdateShiftRequest): Promise<Shift> {

@@ -9,9 +9,11 @@ interface ShiftsGridProps {
   weekData: WeekViewData | null;
   employees: EmployeeWithShifts[];
   isLoading: boolean;
+  onEditShift?: (shift: any) => void;
+  onCreateShift?: (employeeId: number, date: string) => void;
 }
 
-export function ShiftsGrid({ weekData, employees, isLoading }: ShiftsGridProps) {
+export function ShiftsGrid({ weekData, employees, isLoading, onEditShift, onCreateShift }: ShiftsGridProps) {
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg border shadow-sm p-8">
@@ -40,6 +42,8 @@ export function ShiftsGrid({ weekData, employees, isLoading }: ShiftsGridProps) 
       <ShiftGridBody 
         employees={employees} 
         weekData={weekData}
+        onEditShift={onEditShift}
+        onCreateShift={onCreateShift}
       />
     </div>
   );

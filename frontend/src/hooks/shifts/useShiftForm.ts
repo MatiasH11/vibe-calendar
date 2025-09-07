@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { shiftsApiService } from '@/lib/shifts';
 import { ShiftFormData, ShiftFormErrors, CreateShiftRequest, UpdateShiftRequest } from '@/types/shifts/forms';
 
-export function useShiftForm(initialData?: Partial<ShiftFormData>) {
+export function useShiftForm(initialData?: Partial<ShiftFormData>, shiftId?: number) {
   const [formData, setFormData] = useState<ShiftFormData>({
     company_employee_id: initialData?.company_employee_id || 0,
     shift_date: initialData?.shift_date || '',
@@ -13,6 +13,20 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>) {
     end_time: initialData?.end_time || '',
     notes: initialData?.notes || '',
   });
+
+  // Actualizar formData cuando cambien los initialData
+  useEffect(() => {
+    if (initialData) {
+      setFormData(prev => ({
+        ...prev,
+        company_employee_id: initialData.company_employee_id || prev.company_employee_id,
+        shift_date: initialData.shift_date || prev.shift_date,
+        start_time: initialData.start_time || prev.start_time,
+        end_time: initialData.end_time || prev.end_time,
+        notes: initialData.notes || prev.notes,
+      }));
+    }
+  }, [initialData]);
 
   const [errors, setErrors] = useState<ShiftFormErrors>({});
   const queryClient = useQueryClient();
@@ -80,10 +94,26 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>) {
   }, [formData]);
 
   const submit = useCallback(async () => {
-    if (!validate()) return;
+    console.log('🔍 useShiftForm submit called with:', { formData, shiftId });
+    
+    if (!validate()) {
+      console.log('❌ Validation failed');
+      return;
+    }
 
     try {
-      await createMutation.mutateAsync(formData);
+      if (shiftId) {
+        // Actualizar turno existente
+        console.log('🔄 Updating shift:', { id: shiftId, data: formData });
+        await updateMutation.mutateAsync({ id: shiftId, data: formData });
+      } else {
+        // Crear nuevo turno
+        console.log('➕ Creating shift:', formData);
+        await createMutation.mutateAsync(formData);
+      }
+      
+      console.log('✅ Shift operation successful');
+      
       // Reset form on success
       setFormData({
         company_employee_id: 0,
@@ -93,9 +123,10 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>) {
         notes: '',
       });
     } catch (error) {
-      setError('general', 'Error al crear el turno');
+      console.error('❌ Shift operation failed:', error);
+      setError('general', shiftId ? 'Error al actualizar el turno' : 'Error al crear el turno');
     }
-  }, [formData, validate, createMutation, setError]);
+  }, [formData, validate, createMutation, updateMutation, setError, shiftId]);
 
   const reset = useCallback(() => {
     setFormData({
@@ -118,5 +149,6 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>) {
     validate,
     submit,
     reset,
+    isEditing: !!shiftId,
   };
 }
