@@ -14,13 +14,18 @@ import { ContextualDistribution } from '@/components/employees/ContextualDistrib
 import { ContextualInsights } from '@/components/employees/ContextualInsights';
 import { Employee } from '@/types/employee';
 import { toast } from 'sonner';
+import { EmployeeFormModal } from '@/components/employees/EmployeeFormModal';
+import { UpdateEmployeeFormData } from '@/lib/validations/employee';
 
 export function EmployeeMainPanel() {
   const { 
     filters, 
     roleFilter,
+    selectedEmployee,
+    isEditingEmployee,
     setFilters,
-    setSelectedEmployee 
+    setSelectedEmployee,
+    setEditingEmployee
   } = useEmployeesStore();
 
   // Usar hook existente de empleados
@@ -31,7 +36,13 @@ export function EmployeeMainPanel() {
     totalPages, 
     isLoading, 
     error, 
-    refetch
+    refetch,
+    updateEmployee,
+    deleteEmployee,
+    toggleStatus,
+    isUpdating,
+    isDeleting,
+    isToggling
   } = useEmployees(filters);
 
   // Calcular estadísticas
@@ -41,28 +52,30 @@ export function EmployeeMainPanel() {
 
   const handleEditEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
+    setEditingEmployee(true);
   };
 
   const handleDeleteEmployee = async (id: number) => {
     if (confirm('¿Estás seguro de que quieres eliminar este empleado?')) {
-      try {
-        // TODO: Implementar deleteEmployee del hook cuando esté disponible
-        toast.success('Empleado eliminado exitosamente');
-        refetch();
-      } catch (error) {
-        toast.error('Error al eliminar empleado');
-      }
+      deleteEmployee(id);
     }
   };
 
   const handleToggleStatus = async (id: number, isActive: boolean) => {
-    try {
-      // TODO: Implementar toggleStatus del hook cuando esté disponible
-      toast.success('Estado del empleado actualizado');
-      refetch();
-    } catch (error) {
-      toast.error('Error al cambiar estado del empleado');
+    toggleStatus({ id, isActive });
+  };
+
+  const handleUpdateEmployee = (data: UpdateEmployeeFormData) => {
+    if (selectedEmployee) {
+      updateEmployee({ id: selectedEmployee.id, data });
+      setEditingEmployee(false);
+      setSelectedEmployee(null);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEmployee(false);
+    setSelectedEmployee(null);
   };
 
   const handleFiltersChange = (newFilters: any) => {
@@ -171,8 +184,8 @@ export function EmployeeMainPanel() {
                       is_active: filters.is_active
                     }}
                     onFiltersChange={handleFiltersChange}
-                    isDeleting={false}
-                    isToggling={false}
+                    isDeleting={isDeleting}
+                    isToggling={isToggling}
                   />
                 </div>
                 
@@ -193,6 +206,15 @@ export function EmployeeMainPanel() {
           </div>
         </div>
       </div>
+
+      {/* Modal de edición de empleado */}
+      <EmployeeFormModal
+        isOpen={isEditingEmployee}
+        employee={selectedEmployee}
+        onSubmit={handleUpdateEmployee}
+        onCancel={handleCancelEdit}
+        isLoading={isUpdating}
+      />
     </div>
   );
 }

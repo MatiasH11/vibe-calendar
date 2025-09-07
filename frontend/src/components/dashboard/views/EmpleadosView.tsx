@@ -36,11 +36,13 @@ export function EmpleadosView() {
     roleFilter, 
     searchTerm, 
     isCreatingEmployee,
+    isEditingEmployee,
     isCreatingRole,
     filters,
     toggleSidebar,
     setSearchTerm,
     setCreatingEmployee,
+    setEditingEmployee,
     setCreatingRole,
     setFilters,
     clearAllFilters 

@@ -15,6 +15,7 @@ interface EmployeesStore {
   // Estado de UI
   isSidebarCollapsed: boolean;
   isCreatingEmployee: boolean;
+  isEditingEmployee: boolean;
   isCreatingRole: boolean;
   searchTerm: string;
   
@@ -31,6 +32,7 @@ interface EmployeesStore {
   // Acciones de UI
   toggleSidebar: () => void;
   setCreatingEmployee: (creating: boolean) => void;
+  setEditingEmployee: (editing: boolean) => void;
   setCreatingRole: (creating: boolean) => void;
   setCreatingCargo: (creating: boolean) => void;
   setSearchTerm: (term: string) => void;
@@ -54,6 +56,7 @@ export const useEmployeesStore = create<EmployeesStore>((set, get) => ({
   roleInclude: 'stats', // Por defecto mostrar contadores
   isSidebarCollapsed: false,
   isCreatingEmployee: false,
+  isEditingEmployee: false,
   isCreatingRole: false,
   searchTerm: '',
   
@@ -79,6 +82,7 @@ export const useEmployeesStore = create<EmployeesStore>((set, get) => ({
     isSidebarCollapsed: !state.isSidebarCollapsed 
   })),
   setCreatingEmployee: (creating) => set({ isCreatingEmployee: creating }),
+  setEditingEmployee: (editing) => set({ isEditingEmployee: editing }),
   setCreatingRole: (creating) => set({ isCreatingRole: creating }),
   setCreatingCargo: (creating) => set({ isCreatingRole: creating }), // Usar mismo estado para modal
   setSearchTerm: (term) => set({ 
