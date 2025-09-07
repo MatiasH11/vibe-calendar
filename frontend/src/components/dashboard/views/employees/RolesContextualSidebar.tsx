@@ -22,6 +22,7 @@ import { useCargosContextual } from '@/hooks/useCargosContextual';
 import { Cargo } from '@/types/employee';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { RoleFormModal } from '@/components/employees/RoleFormModal';
 
 export function RolesContextualSidebar() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,7 +30,8 @@ export function RolesContextualSidebar() {
   
   const { 
     setCreatingCargo, 
-    roleFilter 
+    roleFilter,
+    isCreatingRole 
   } = useEmployeesStore();
 
   const {
@@ -272,6 +274,13 @@ export function RolesContextualSidebar() {
           </div>
         </div>
       )}
+
+      {/* Modal de edición de cargo */}
+      <RoleFormModal
+        isOpen={!!editingCargo}
+        onClose={() => setEditingCargo(null)}
+        editingRole={editingCargo}
+      />
     </div>
   );
 }

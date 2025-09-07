@@ -65,9 +65,13 @@ export function useCargosContextual() {
         queryClient.invalidateQueries({ queryKey: ['cargos-contextual'] });
         queryClient.invalidateQueries({ queryKey: ['roles'] });
         queryClient.invalidateQueries({ queryKey: ['cargo-detail'] });
+        queryClient.invalidateQueries({ queryKey: ['employees'] });
       } else {
         toast.error(response.error?.message || 'Error al actualizar cargo');
       }
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Error al actualizar cargo');
     },
   });
 

@@ -7,22 +7,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   cargoQuickCreateSchema, 
   CargoQuickCreateFormData,
   CARGO_COLORS 
 } from '@/lib/validations/cargo';
 import { useCargosContextual } from '@/hooks/useCargosContextual';
-import { Briefcase, Palette, Users } from 'lucide-react';
+import { Cargo } from '@/types/employee';
+import { Briefcase, Palette, Users, Edit } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 
 interface RoleFormModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editingRole?: Cargo | null;
 }
 
-export function RoleFormModal({ isOpen, onClose }: RoleFormModalProps) {
-  const { createCargo, isCreating } = useCargosContextual();
+export function RoleFormModal({ isOpen, onClose, editingRole }: RoleFormModalProps) {
+  const { createCargo, updateCargo, isCreating, isUpdating } = useCargosContextual();
+  const isEditing = !!editingRole;
 
   const form = useForm<CargoQuickCreateFormData>({
     resolver: zodResolver(cargoQuickCreateSchema),
@@ -32,13 +37,39 @@ export function RoleFormModal({ isOpen, onClose }: RoleFormModalProps) {
     },
   });
 
+  // Actualizar formulario cuando se edita un rol
+  useEffect(() => {
+    if (editingRole) {
+      form.reset({
+        name: editingRole.name,
+        color: editingRole.color,
+      });
+    } else {
+      form.reset({
+        name: '',
+        color: CARGO_COLORS[0].value,
+      });
+    }
+  }, [editingRole, form]);
+
   const handleSubmit = async (data: CargoQuickCreateFormData) => {
     try {
-      await createCargo({
-        name: data.name,
-        color: data.color,
-        description: '', // Descripción opcional en creación rápida
-      });
+      if (isEditing && editingRole) {
+        await updateCargo({
+          id: editingRole.id,
+          data: {
+            name: data.name,
+            color: data.color,
+            description: editingRole.description || '',
+          }
+        });
+      } else {
+        await createCargo({
+          name: data.name,
+          color: data.color,
+          description: '', // Descripción opcional en creación rápida
+        });
+      }
       form.reset();
       onClose();
     } catch (error) {
@@ -56,8 +87,17 @@ export function RoleFormModal({ isOpen, onClose }: RoleFormModalProps) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Briefcase className="w-5 h-5" />
-            <span>Crear Cargo Rápido</span>
+            {isEditing ? (
+              <>
+                <Edit className="w-5 h-5" />
+                <span>Editar Cargo</span>
+              </>
+            ) : (
+              <>
+                <Briefcase className="w-5 h-5" />
+                <span>Crear Cargo Rápido</span>
+              </>
+            )}
           </DialogTitle>
         </DialogHeader>
         
@@ -148,7 +188,7 @@ export function RoleFormModal({ isOpen, onClose }: RoleFormModalProps) {
               </span>
               <Badge variant="outline" className="text-xs">
                 <Users className="w-3 h-3 mr-1" />
-                0
+                {isEditing && editingRole ? (editingRole._count?.employees || 0) : 0}
               </Badge>
             </div>
           </div>
@@ -159,15 +199,15 @@ export function RoleFormModal({ isOpen, onClose }: RoleFormModalProps) {
               type="button" 
               variant="outline" 
               onClick={handleClose}
-              disabled={isCreating}
+              disabled={isCreating || isUpdating}
             >
               Cancelar
             </Button>
             <Button 
               type="submit" 
-              disabled={isCreating || !form.watch('name')}
+              disabled={isCreating || isUpdating || !form.watch('name')}
             >
-              {isCreating ? 'Creando...' : 'Crear Cargo'}
+              {isCreating ? 'Creando...' : isUpdating ? 'Actualizando...' : isEditing ? 'Actualizar Cargo' : 'Crear Cargo'}
             </Button>
           </div>
         </form>
