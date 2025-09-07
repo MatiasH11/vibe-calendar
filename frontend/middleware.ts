@@ -1,32 +1,38 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('auth_token')?.value;
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'vibe-calendar-jwt-secret-2024'
+);
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const token = request.cookies.get('auth_token')?.value;
 
-  // Rutas públicas
-  const publicPaths = new Set(['/login', '/register']);
-  const isPublic = publicPaths.has(pathname) || pathname.startsWith('/api') || pathname.startsWith('/_next');
+  // Rutas que requieren autenticación
+  const protectedRoutes = ['/dashboard', '/admin'];
+  const isProtected = protectedRoutes.some(route => pathname.startsWith(route));
 
-  if (!token && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.search = '';
-    return NextResponse.redirect(url);
+  if (isProtected && !token) {
+    // Redireccionar a login
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (token && publicPaths.has(pathname)) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+  if (isProtected && token) {
+    try {
+      await jwtVerify(token, JWT_SECRET);
+      return NextResponse.next();
+    } catch {
+      // Token inválido, limpiar cookie y redireccionar
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('auth_token');
+      return response;
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
-
-

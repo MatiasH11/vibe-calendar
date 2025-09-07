@@ -10,6 +10,8 @@ import authRouter from './routes/auth.routes';
 import roleRouter from './routes/role.routes';
 import employeeRouter from './routes/employee.routes';
 import shiftRouter from './routes/shift.routes';
+// NUEVA: Ruta de estadísticas
+import statisticsRouter from './routes/statistics.routes';
 
 const app: Express = express();
 
@@ -55,6 +57,8 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/roles', roleRouter);
 app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/shifts', shiftRouter);
+// NUEVA: Ruta de estadísticas
+app.use('/api/v1/statistics', statisticsRouter);
 
 // Global Error Handler (debe ser el último middleware)
 app.use(error_handler);
