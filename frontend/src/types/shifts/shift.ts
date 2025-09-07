@@ -2,8 +2,8 @@ export interface Shift {
   id: number;
   company_employee_id: number;
   shift_date: string; // ISO date string (YYYY-MM-DD)
-  start_time: string; // HH:mm format
-  end_time: string;   // HH:mm format
+  start_time: string | Date; // HH:mm format or Date object
+  end_time: string | Date;   // HH:mm format or Date object
   notes?: string;
   status: 'draft' | 'confirmed' | 'cancelled';
   created_at: string;

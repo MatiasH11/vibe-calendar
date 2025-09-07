@@ -5,7 +5,7 @@ export interface EmployeeWithShifts {
   company_id: number;
   user_id: number;
   role_id: number;
-  position?: string;
+  position: string;               // Posición del empleado
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -22,7 +22,7 @@ export interface EmployeeWithShifts {
   role: {
     id: number;
     company_id: number;
-    name: string;
+    name: string;                 // Rol de negocio: "Admin", "Vendedor", etc.
     description?: string;
     color: string;
     created_at: string;

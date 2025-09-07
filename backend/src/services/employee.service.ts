@@ -25,6 +25,7 @@ export const employee_service = {
             last_name: data.last_name,
             email: data.email,
             password_hash,
+            user_type: 'employee', // Los empleados agregados son siempre 'employee'
           },
         });
       }

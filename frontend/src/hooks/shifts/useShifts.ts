@@ -113,8 +113,11 @@ export function useShifts() {
   }, []);
 
   const refreshData = useCallback(() => {
+    // Invalidar todas las queries relacionadas con turnos
+    queryClient.invalidateQueries({ queryKey: ['shifts'] });
+    queryClient.invalidateQueries({ queryKey: ['employees-for-shifts'] });
     refetch();
-  }, [refetch]);
+  }, [refetch, queryClient]);
 
   return {
     weekData,

@@ -3,6 +3,7 @@
 import { APP_NAME } from '@/lib/constants';
 import { useDashboard } from './DashboardProvider';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import { NavigationItem } from './NavigationItem';
 import { UserInfo } from './UserInfo';
@@ -54,6 +55,7 @@ const navigationItems = [
 export function Sidebar() {
   const { sidebarCollapsed, setSidebarCollapsed, isMobile, sidebarOpen, setSidebarOpen } = useDashboard();
   const { user } = useAuth();
+  const { canManageShifts, canManageEmployees, canViewStatistics, businessRole } = usePermissions();
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -158,19 +160,34 @@ export function Sidebar() {
             {(sidebarCollapsed && !isMobile) ? "•" : "Menú Principal"}
           </motion.div>
           
-          {navigationItems.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <NavigationItem
-                item={item}
-                collapsed={sidebarCollapsed && !isMobile}
-              />
-            </motion.div>
-          ))}
+          {navigationItems
+            .filter(item => {
+              // Dashboard siempre visible
+              if (item.id === 'dashboard') return true;
+              
+              // Configuración siempre visible
+              if (item.id === 'configuracion') return true;
+              
+              // Verificar permisos específicos
+              if (item.id === 'turnos') return canManageShifts;
+              if (item.id === 'empleados') return canManageEmployees;
+              if (item.id === 'reportes') return canViewStatistics;
+              
+              return true;
+            })
+            .map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <NavigationItem
+                  item={item}
+                  collapsed={sidebarCollapsed && !isMobile}
+                />
+              </motion.div>
+            ))}
         </div>
       </nav>
 

@@ -62,9 +62,32 @@ export const SHIFT_CONSTANTS = {
   MAX_SHIFT_DURATION: 12, // horas máximas
 } as const;
 
+// Colores para roles de negocio
 export const ROLE_COLORS = {
-  bar: 'roleColors-bar',
-  cocina: 'roleColors-cocina', 
-  caja: 'roleColors-caja',
-  default: 'roleColors-default',
+  'Admin': 'bg-blue-500',
+  'Vendedor': 'bg-green-500',
+  'Gerente': 'bg-purple-500',
+  'Recepcionista': 'bg-orange-500',
+  'default': 'bg-gray-500',
+} as const;
+
+// Colores para tipos de usuario (permisos)
+export const USER_TYPE_COLORS = {
+  admin: 'bg-red-500',
+  employee: 'bg-blue-500',
+} as const;
+
+// Iconos para roles de negocio
+export const ROLE_ICONS = {
+  'Admin': '👑',
+  'Vendedor': '🛒',
+  'Gerente': '👔',
+  'Recepcionista': '📞',
+  'default': '👤',
+} as const;
+
+// Iconos para tipos de usuario
+export const USER_TYPE_ICONS = {
+  admin: '🔑',
+  employee: '👤',
 } as const;

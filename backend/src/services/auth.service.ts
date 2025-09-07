@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma_client';
 import { register_body, login_body } from '../validations/auth.validation';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { AUTH_CONSTANTS, ADMIN_ROLE_NAME } from '../constants/auth';
+import { AUTH_CONSTANTS, BUSINESS_ROLES, USER_TYPES } from '../constants/auth';
 import { env } from '../config/environment';
 
 export const auth_service = {
@@ -34,28 +34,32 @@ export const auth_service = {
             last_name: data.last_name,
             email: data.email,
             password_hash,
+            user_type: 'admin', // El primer usuario de la empresa es siempre admin
           },
         });
 
-        const role = await tx.role.create({
+        // Crear rol de administrador para la empresa
+        const adminRole = await tx.role.create({
           data: {
             company_id: company.id,
-            name: ADMIN_ROLE_NAME,
-            description: 'Default admin role',
+            name: BUSINESS_ROLES.ADMIN,
+            description: 'Administrador de la empresa',
+            color: '#3B82F6', // Azul para admin
           },
         });
 
+        // Asociar usuario como empleado con rol de admin
         const employee = await tx.company_employee.create({
           data: {
             company_id: company.id,
             user_id: user.id,
-            role_id: role.id,
-            position: 'Admin',
+            role_id: adminRole.id,
+            position: BUSINESS_ROLES.ADMIN,
             is_active: true,
           },
         });
 
-        return { company, user, role, employee };
+        return { company, user, role: adminRole, employee };
       });
 
       return { success: true, data: { company_id: result.company.id, user_id: result.user.id, role_id: result.role.id, employee_id: result.employee.id } };
@@ -84,12 +88,14 @@ export const auth_service = {
       throw new Error('USER_NOT_ASSOCIATED_WITH_COMPANY');
     }
 
+    // Usar user_type directamente de la base de datos
     const payload = {
       user_id: user.id,
       company_id: employee.company_id,
       employee_id: employee.id,
       role_id: employee.role_id,
-      role_name: employee.role?.name ?? '',
+      role_name: employee.role.name,        // Rol de negocio: "Admin", "Vendedor", etc.
+      user_type: user.user_type,            // Permisos del sistema desde BD: "admin" | "employee"
     } as const;
 
     const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: AUTH_CONSTANTS.JWT_EXPIRATION });

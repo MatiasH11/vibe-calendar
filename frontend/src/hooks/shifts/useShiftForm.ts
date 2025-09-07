@@ -35,7 +35,9 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>, shiftId?: num
   const createMutation = useMutation({
     mutationFn: (data: CreateShiftRequest) => shiftsApiService.createShift(data),
     onSuccess: () => {
+      // Invalidar todas las queries relacionadas con turnos
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-shifts'] });
     },
   });
 
@@ -44,7 +46,9 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>, shiftId?: num
     mutationFn: ({ id, data }: { id: number; data: UpdateShiftRequest }) => 
       shiftsApiService.updateShift(id, data),
     onSuccess: () => {
+      // Invalidar todas las queries relacionadas con turnos
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-shifts'] });
     },
   });
 

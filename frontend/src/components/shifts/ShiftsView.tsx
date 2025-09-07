@@ -8,12 +8,14 @@ import { ShiftFormModal } from './ShiftFormModal';
 import { useShifts } from '@/hooks/shifts/useShifts';
 import { useShiftForm } from '@/hooks/shifts/useShiftForm';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { FadeIn } from '@/components/ui/transitions';
 import { Shift, EmployeeWithShifts } from '@/types/shifts/shift';
 import { ShiftFormData } from '@/types/shifts/forms';
 
 export function ShiftsView() {
   const { user, isAuthenticated } = useAuth();
+  const { canManageShifts, isAdmin } = usePermissions();
   const {
     weekData,
     employees,
@@ -86,8 +88,8 @@ export function ShiftsView() {
     );
   }
 
-  // Verificar permisos de admin
-  if (user && user.role !== 'admin') {
+  // Verificar permisos de administrador
+  if (!canManageShifts) {
     return (
       <ViewContainer title="Turnos" subtitle="Acceso denegado">
         <div className="p-6 text-center">
@@ -118,7 +120,10 @@ export function ShiftsView() {
   console.log('🔍 ShiftsView Debug:', {
     user,
     isAuthenticated,
-    userRole: user?.role,
+    userType: user?.user_type,
+    roleName: user?.role_name,
+    canManageShifts,
+    isAdmin,
     employees,
     employeesData,
     employeesLoading,

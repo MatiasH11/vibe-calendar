@@ -3,20 +3,28 @@ export interface Employee {
   company_id: number;
   user_id: number;
   role_id: number;
+  position: string;               // Posición/cargo del empleado
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
   user: {
     id: number;
     first_name: string;
     last_name: string;
     email: string;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string;
   };
   role: {
     id: number;
-    name: string;
+    company_id: number;
+    name: string;                 // Nombre del rol de negocio: "Admin", "Vendedor", etc.
     description?: string;
     color: string;
+    created_at: string;
+    updated_at: string;
   };
 }
 
