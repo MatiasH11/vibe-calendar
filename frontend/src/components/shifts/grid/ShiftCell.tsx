@@ -3,6 +3,7 @@
 import { Shift, EmployeeWithShifts } from '@/types/shifts/shift';
 import { DayData } from '@/types/shifts/calendar';
 import { formatTime } from '@/lib/dateUtils';
+import { formatTimeSafe } from '@/lib/timezone-client';
 import { ROLE_COLORS } from '@/lib/constants';
 
 interface ShiftCellProps {
@@ -21,30 +22,6 @@ export function ShiftCell({ shift, employee, day, onEdit }: ShiftCellProps) {
     }
   };
 
-  // Función para formatear el tiempo de manera segura
-  const formatShiftTime = (time: string | Date) => {
-    try {
-      if (typeof time === 'string') {
-        // Si es string, verificar si es formato ISO o HH:mm
-        if (time.includes('T') && time.includes('Z')) {
-          // Es formato ISO, extraer solo la parte de tiempo
-          const date = new Date(time);
-          return formatTime(date);
-        } else {
-          // Es formato HH:mm directo
-          return time;
-        }
-      } else if (time instanceof Date) {
-        // Si es Date, extraer la parte de tiempo
-        return formatTime(time);
-      }
-      return '--:--';
-    } catch (error) {
-      console.error('Error formatting time:', error, time);
-      return '--:--';
-    }
-  };
-
   // Debug: ver qué está llegando del backend
   console.log('🔍 ShiftCell Debug:', {
     shiftId: shift.id,
@@ -54,9 +31,9 @@ export function ShiftCell({ shift, employee, day, onEdit }: ShiftCellProps) {
     end_time_type: typeof shift.end_time,
   });
 
-  // Obtener los tiempos formateados
-  const startTime = formatShiftTime(shift.start_time);
-  const endTime = formatShiftTime(shift.end_time);
+  // Obtener los tiempos formateados usando la nueva función segura
+  const startTime = formatTimeSafe(shift.start_time);
+  const endTime = formatTimeSafe(shift.end_time);
 
   return (
     <div

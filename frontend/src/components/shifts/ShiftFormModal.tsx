@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ShiftForm } from './ShiftForm';
 import { Shift, EmployeeWithShifts } from '@/types/shifts/shift';
 import { ShiftFormData } from '@/types/shifts/forms';
+import { formatTimeSafe } from '@/lib/timezone-client';
 
 interface ShiftFormModalProps {
   isOpen: boolean;
@@ -30,8 +31,8 @@ export function ShiftFormModal({
   const initialData: Partial<ShiftFormData> = shift ? {
     company_employee_id: shift.company_employee_id,
     shift_date: shift.shift_date,
-    start_time: shift.start_time,
-    end_time: shift.end_time,
+    start_time: formatTimeSafe(shift.start_time),
+    end_time: formatTimeSafe(shift.end_time),
     notes: shift.notes || '',
   } : employee && selectedDate ? {
     company_employee_id: employee.id,

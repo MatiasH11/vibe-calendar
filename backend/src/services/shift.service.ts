@@ -1,15 +1,19 @@
 import { prisma } from '../config/prisma_client';
 import { create_shift_body, get_shifts_query, update_shift_body } from '../validations/shift.validation';
 
-const toTime = (hhmm: string): Date => {
-  // Para PostgreSQL TIME con Prisma, necesitamos crear un DateTime completo
-  // Prisma extraerá la parte de tiempo automáticamente
-  if (hhmm.match(/^\d{2}:\d{2}$/)) {
-    // Crear un DateTime con fecha fija (1970-01-01) y la hora específica
-    return new Date(`1970-01-01T${hhmm}:00.000Z`);
-  }
-  // Si ya es un formato de tiempo completo, intentar parsearlo
-  return new Date(`1970-01-01T${hhmm}.000Z`);
+// Función para convertir tiempo UTC a DateTime (para almacenar en BD)
+const utcTimeToDateTime = (utcTime: string): Date => {
+  // Crear un DateTime con fecha fija (1970-01-01) y la hora UTC
+  return new Date(`1970-01-01T${utcTime}:00.000Z`);
+};
+
+// Función para convertir DateTime a tiempo UTC (para devolver al frontend)
+const dateTimeToUtcTime = (dateTime: Date): string => {
+  return dateTime.toISOString().substring(11, 16);
+};
+
+const validateTimeFormat = (time: string): boolean => {
+  return /^\d{2}:\d{2}$/.test(time);
 };
 
 const timeLess = (a: string, b: string) => a < b;
@@ -28,7 +32,10 @@ export const shift_service = {
       throw new Error('UNAUTHORIZED_COMPANY_ACCESS');
     }
 
-    // 2) Validaciones de hora (no overnight)
+    // 2) Validaciones de formato y hora (no overnight)
+    if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
+      throw new Error('INVALID_TIME_FORMAT');
+    }
     if (!timeLess(data.start_time, data.end_time)) {
       throw new Error('OVERNIGHT_NOT_ALLOWED');
     }
@@ -43,22 +50,27 @@ export const shift_service = {
         },
       });
 
-      const newStart = toTime(data.start_time);
-      const newEnd = toTime(data.end_time);
+      // El frontend ya envía tiempos UTC, solo validar formato
+      if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
+        throw new Error('INVALID_TIME_FORMAT');
+      }
+      
+      // Validar solapamiento con tiempos UTC
       for (const s of existing) {
-        const sStart = s.start_time as unknown as string;
-        const sEnd = s.end_time as unknown as string;
+        const sStart = dateTimeToUtcTime(s.start_time as Date);
+        const sEnd = dateTimeToUtcTime(s.end_time as Date);
         if (overlap(data.start_time, data.end_time, sStart, sEnd)) {
           throw new Error('SHIFT_OVERLAP');
         }
       }
 
+      // 4) Crear el turno con tiempos UTC (convertir a DateTime para BD)
       const created = await tx.shift.create({
         data: {
           company_employee_id: data.company_employee_id,
           shift_date: new Date(data.shift_date),
-          start_time: newStart,
-          end_time: newEnd,
+          start_time: utcTimeToDateTime(data.start_time),
+          end_time: utcTimeToDateTime(data.end_time),
           notes: data.notes,
         },
       });
@@ -77,10 +89,18 @@ export const shift_service = {
         lte: new Date(query.end_date),
       };
     }
-    return prisma.shift.findMany({
+    
+    const shifts = await prisma.shift.findMany({
       where,
       include: { company_employee: { include: { user: true } } },
     });
+    
+    // Devolver tiempos UTC al frontend (el frontend se encarga de la conversión)
+    return shifts.map(shift => ({
+      ...shift,
+      start_time: dateTimeToUtcTime(shift.start_time as Date),
+      end_time: dateTimeToUtcTime(shift.end_time as Date),
+    }));
   },
 
   async update(shift_id: number, data: update_shift_body, admin_company_id: number) {
@@ -94,8 +114,29 @@ export const shift_service = {
     }
 
     const nextDate = data.shift_date ? new Date(data.shift_date) : target.shift_date;
-    const nextStart = data.start_time ?? (target.start_time as unknown as string);
-    const nextEnd = data.end_time ?? (target.end_time as unknown as string);
+    
+    // Convertir tiempos locales a UTC si se proporcionan
+    let nextStart: string;
+    let nextEnd: string;
+    
+    if (data.start_time) {
+      if (!validateTimeFormat(data.start_time)) {
+        throw new Error('INVALID_START_TIME_FORMAT');
+      }
+      nextStart = data.start_time;
+    } else {
+      nextStart = utcTimeToLocal(target.start_time as Date, target.shift_date);
+    }
+    
+    if (data.end_time) {
+      if (!validateTimeFormat(data.end_time)) {
+        throw new Error('INVALID_END_TIME_FORMAT');
+      }
+      nextEnd = data.end_time;
+    } else {
+      nextEnd = utcTimeToLocal(target.end_time as Date, target.shift_date);
+    }
+    
     if (!timeLess(nextStart, nextEnd)) {
       throw new Error('OVERNIGHT_NOT_ALLOWED');
     }
@@ -112,24 +153,34 @@ export const shift_service = {
           },
         });
         for (const s of existing) {
-          const sStart = s.start_time as unknown as string;
-          const sEnd = s.end_time as unknown as string;
+          const sStart = utcTimeToLocal(s.start_time as Date, s.shift_date);
+          const sEnd = utcTimeToLocal(s.end_time as Date, s.shift_date);
           if (overlap(nextStart, nextEnd, sStart, sEnd)) {
             throw new Error('SHIFT_OVERLAP');
           }
         }
       }
 
+      // Convertir tiempos locales a UTC para almacenar
+      const utcStart = data.start_time ? localTimeToUTC(data.start_time, nextDate) : undefined;
+      const utcEnd = data.end_time ? localTimeToUTC(data.end_time, nextDate) : undefined;
+      
       const updated = await tx.shift.update({
         where: { id: shift_id },
         data: {
           shift_date: nextDate,
-          start_time: data.start_time ? toTime(data.start_time) : undefined,
-          end_time: data.end_time ? toTime(data.end_time) : undefined,
+          start_time: utcStart,
+          end_time: utcEnd,
           notes: data.notes ?? undefined,
         },
       });
-      return updated;
+      
+      // Convertir tiempos UTC a local para devolver
+      return {
+        ...updated,
+        start_time: utcTimeToLocal(updated.start_time as Date, updated.shift_date),
+        end_time: utcTimeToLocal(updated.end_time as Date, updated.shift_date),
+      };
     });
   },
 

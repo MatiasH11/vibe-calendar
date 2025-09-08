@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { shiftsApiService } from '@/lib/shifts';
 import { ShiftFormData, ShiftFormErrors, CreateShiftRequest, UpdateShiftRequest } from '@/types/shifts/forms';
+import { localTimeToUTC, getClientTimezone } from '@/lib/timezone-client';
 
 export function useShiftForm(initialData?: Partial<ShiftFormData>, shiftId?: number) {
   const [formData, setFormData] = useState<ShiftFormData>({
@@ -106,14 +107,30 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>, shiftId?: num
     }
 
     try {
+      // Convertir tiempos locales a UTC antes de enviar (solución flexible)
+      const clientTimezone = getClientTimezone();
+      const shiftDate = new Date(formData.shift_date);
+      
+      const utcData = {
+        ...formData,
+        start_time: localTimeToUTC(formData.start_time, shiftDate, clientTimezone),
+        end_time: localTimeToUTC(formData.end_time, shiftDate, clientTimezone),
+      };
+
+      console.log('🌍 Converting times to UTC (flexible):', {
+        clientTimezone,
+        local: { start: formData.start_time, end: formData.end_time },
+        utc: { start: utcData.start_time, end: utcData.end_time }
+      });
+
       if (shiftId) {
         // Actualizar turno existente
-        console.log('🔄 Updating shift:', { id: shiftId, data: formData });
-        await updateMutation.mutateAsync({ id: shiftId, data: formData });
+        console.log('🔄 Updating shift:', { id: shiftId, data: utcData });
+        await updateMutation.mutateAsync({ id: shiftId, data: utcData });
       } else {
         // Crear nuevo turno
-        console.log('➕ Creating shift:', formData);
-        await createMutation.mutateAsync(formData);
+        console.log('➕ Creating shift:', utcData);
+        await createMutation.mutateAsync(utcData);
       }
       
       console.log('✅ Shift operation successful');
