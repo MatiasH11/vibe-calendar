@@ -3,6 +3,8 @@
 import { WeekViewData, EmployeeWithShifts } from '@/types/shifts/shift';
 import { ShiftGridHeader } from './ShiftGridHeader';
 import { ShiftGridBody } from './ShiftGridBody';
+import { ShiftGridFooter } from './ShiftGridFooter';
+import { ShiftGridFooterDebug } from './ShiftGridFooterDebug';
 import { Loading } from '@/components/ui/loading';
 
 interface ShiftsGridProps {
@@ -33,18 +35,36 @@ export function ShiftsGrid({ weekData, employees, isLoading, onEditShift, onCrea
     );
   }
 
+  // Debug: Verificar que los datos coincidan
+  console.log('🔍 ShiftsGrid - weekData.days:', weekData.days.map(d => d.date));
+  console.log('🔍 ShiftsGrid - employees:', employees.length);
+  console.log('🔍 ShiftsGrid - employees shifts dates:', employees.flatMap(emp => emp.shifts.map(ws => ws.date)));
+
   return (
     <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-      {/* Header con días de la semana */}
-      <ShiftGridHeader days={weekData.days} />
+      {/* Header con días de la semana - Fijo */}
+      <div className="sticky top-0 z-10">
+        <ShiftGridHeader days={weekData.days} />
+      </div>
       
-      {/* Cuerpo con empleados y turnos */}
-      <ShiftGridBody 
-        employees={employees} 
-        weekData={weekData}
-        onEditShift={onEditShift}
-        onCreateShift={onCreateShift}
-      />
+      {/* Contenedor con scroll para el cuerpo */}
+      <div className="max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 scrollbar-thumb-rounded">
+        {/* Cuerpo con empleados y turnos */}
+        <ShiftGridBody 
+          employees={employees} 
+          weekData={weekData}
+          onEditShift={onEditShift}
+          onCreateShift={onCreateShift}
+        />
+      </div>
+      
+      {/* Footer con suma de horas - Fijo */}
+      <div className="sticky bottom-0 z-10">
+        <ShiftGridFooterDebug 
+          days={weekData.days} 
+          employees={employees}
+        />
+      </div>
     </div>
   );
 }

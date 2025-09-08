@@ -9,15 +9,52 @@ import { es } from 'date-fns/locale';
 
 export function useShifts() {
   const [currentWeek, setCurrentWeek] = useState(() => {
-    const today = new Date();
+    // Crear fecha actual de forma más explícita
+    const now = new Date();
+    console.log('🔍 Fecha actual del sistema:', now.toISOString());
+    console.log('🔍 Fecha local:', now.toLocaleDateString());
+    console.log('🔍 Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+    
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    console.log('🔍 Fecha normalizada:', today.toISOString());
+    
     const { start } = getWeekRange(today);
-    return formatDate(start, 'yyyy-MM-dd');
+    const weekStart = start.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    console.log('🔍 Inicializando currentWeek:', {
+      now: now.toISOString(),
+      today: today.toISOString(),
+      weekStart,
+      dayOfWeek: today.getDay(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+    
+    // Verificar que la semana calculada sea correcta
+    const expectedWeekStart = '2025-09-01'; // Lunes 1 de septiembre
+    if (weekStart !== expectedWeekStart) {
+      console.error('❌ ERROR: currentWeek no se inicializó correctamente');
+      console.error('❌ Esperado:', expectedWeekStart);
+      console.error('❌ Obtenido:', weekStart);
+    } else {
+      console.log('✅ currentWeek inicializado correctamente');
+    }
+    
+    return weekStart;
   });
 
   const queryClient = useQueryClient();
 
   // Obtener rango de la semana actual
-  const { start: weekStart, end: weekEnd } = getWeekRange(new Date(currentWeek));
+  // Crear la fecha de forma explícita para evitar problemas de zona horaria
+  const currentWeekDate = new Date(currentWeek + 'T00:00:00');
+  const { start: weekStart, end: weekEnd } = getWeekRange(currentWeekDate);
+  
+  console.log('🔍 Cálculo de semana:', {
+    currentWeek,
+    currentWeekDate: currentWeekDate.toISOString(),
+    weekStart: weekStart.toISOString().split('T')[0],
+    weekEnd: weekEnd.toISOString().split('T')[0]
+  });
 
   // Query para obtener turnos de la semana
   const {
@@ -37,17 +74,34 @@ export function useShifts() {
   // Query para obtener empleados con turnos de la semana
   const { data: employeesData, isLoading: employeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees-for-shifts', currentWeek],
-    queryFn: () => shiftsApiService.getEmployeesForShifts(
-      formatDate(weekStart, 'yyyy-MM-dd'),
-      formatDate(weekEnd, 'yyyy-MM-dd'),
-      formatDate(weekStart, 'yyyy-MM-dd'), // weekStart para compatibilidad
-      formatDate(weekEnd, 'yyyy-MM-dd')    // weekEnd para compatibilidad
-    ),
+    queryFn: () => {
+      const startDate = formatDate(weekStart, 'yyyy-MM-dd');
+      const endDate = formatDate(weekEnd, 'yyyy-MM-dd');
+      
+      console.log('🔍 Llamando al backend con fechas:', {
+        currentWeek,
+        weekStart: startDate,
+        weekEnd: endDate,
+        weekStartObj: weekStart.toISOString(),
+        weekEndObj: weekEnd.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+      
+      return shiftsApiService.getEmployeesForShifts(
+        startDate,
+        endDate,
+        startDate, // weekStart para compatibilidad
+        endDate    // weekEnd para compatibilidad
+      );
+    },
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
   // Debug logs
   console.log('🔍 Debug useShifts:', {
+    currentWeek,
+    weekStart: formatDate(weekStart, 'yyyy-MM-dd'),
+    weekEnd: formatDate(weekEnd, 'yyyy-MM-dd'),
     employeesData,
     employeesLoading,
     employeesError,
@@ -55,6 +109,15 @@ export function useShifts() {
     isLoading,
     error
   });
+
+  // Log cuando currentWeek cambie
+  useEffect(() => {
+    console.log('🔍 currentWeek cambió a:', currentWeek);
+    console.log('🔍 Rango de semana calculado:', {
+      start: formatDate(weekStart, 'yyyy-MM-dd'),
+      end: formatDate(weekEnd, 'yyyy-MM-dd')
+    });
+  }, [currentWeek, weekStart, weekEnd]);
 
   console.log('🔍 employeesData length:', employeesData?.length);
   console.log('🔍 employeesData content:', employeesData);
@@ -65,14 +128,33 @@ export function useShifts() {
   const weekData: WeekViewData | null = useMemo(() => {
     if (!employeesData) return null;
 
+    console.log('🔍 Generando weekData para currentWeek:', currentWeek);
+    console.log('🔍 employeesData recibido:', employeesData.length, 'empleados');
+    
+    // Usar la misma lógica de zona horaria que usamos para weekStart/weekEnd
+    const weekDays = getWeekDays(currentWeekDate);
+    console.log('🔍 Días de la semana generados:', weekDays.map(d => d.toISOString().split('T')[0]));
+    
+    // Verificar si los datos de empleados tienen turnos para la semana correcta
+    employeesData.forEach((emp, index) => {
+      console.log(`🔍 Empleado ${index + 1} (${emp.user?.first_name} ${emp.user?.last_name}):`);
+      if (emp.shifts && emp.shifts.length > 0) {
+        console.log('  📅 Fechas de turnos:', emp.shifts.map(ws => ws.date));
+      } else {
+        console.log('  📅 Sin turnos');
+      }
+    });
+
     // Los datos ya vienen procesados del backend, solo necesitamos crear los días
-    const days = getWeekDays(new Date(currentWeek)).map(date => {
-      const dateStr = formatDate(date, 'yyyy-MM-dd');
+    const days = weekDays.map(date => {
+      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
       
       // Contar empleados con turnos en este día
       const employeesWithShifts = employeesData.filter(emp => 
         emp.shifts.some(ws => ws.date === dateStr && ws.shifts.length > 0)
       );
+      
+      console.log(`🔍 Día ${dateStr}: ${employeesWithShifts.length} empleados con turnos`);
       
       return {
         date: dateStr,
@@ -98,14 +180,35 @@ export function useShifts() {
 
   // Navegación de semana
   const navigateWeekCallback = useCallback((direction: 'prev' | 'next') => {
-    const newWeek = navigateWeek(new Date(currentWeek), direction);
-    setCurrentWeek(formatDate(newWeek, 'yyyy-MM-dd'));
+    const currentWeekDate = new Date(currentWeek + 'T00:00:00');
+    const newWeek = navigateWeek(currentWeekDate, direction);
+    const newWeekStart = newWeek.toISOString().split('T')[0];
+    
+    console.log('🔍 navigateWeek ejecutado:', {
+      direction,
+      currentWeek,
+      newWeekStart,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+    
+    setCurrentWeek(newWeekStart);
   }, [currentWeek]);
 
   const goToToday = useCallback(() => {
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const { start } = getWeekRange(today);
-    setCurrentWeek(formatDate(start, 'yyyy-MM-dd'));
+    const weekStart = start.toISOString().split('T')[0];
+    
+    console.log('🔍 goToToday ejecutado:', {
+      now: now.toISOString(),
+      today: today.toISOString(),
+      weekStart,
+      dayOfWeek: today.getDay(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+    
+    setCurrentWeek(weekStart);
   }, []);
 
   const goToWeek = useCallback((date: string) => {

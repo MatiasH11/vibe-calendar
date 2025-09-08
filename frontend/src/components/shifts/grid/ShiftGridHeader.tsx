@@ -25,7 +25,7 @@ export function ShiftGridHeader({ days }: ShiftGridHeaderProps) {
         >
           <div className="text-sm font-medium">{day.dayName}</div>
           <div className="text-xs text-gray-500 mt-1">
-            {formatDate(new Date(day.date), 'dd/MM')}
+            {formatDate(new Date(day.date + 'T00:00:00'), 'dd/MM')}
           </div>
         </div>
       ))}
