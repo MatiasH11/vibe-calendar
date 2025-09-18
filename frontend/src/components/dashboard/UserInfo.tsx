@@ -62,7 +62,7 @@ export function UserInfo({ collapsed }: UserInfoProps) {
               Usuario #{user?.user_id || 'N/A'}
             </p>
             <p className="text-xs text-gray-500 truncate">
-              {user?.role || 'admin'}
+              {user?.role_name || 'admin'}
             </p>
           </div>
           <ChevronUp 
@@ -76,12 +76,10 @@ export function UserInfo({ collapsed }: UserInfoProps) {
         {/* Detalles expandibles */}
         {showDetails && (
           <div className="space-y-2 pl-2">
-            {user?.email && (
-              <div className="flex items-center space-x-2 text-xs text-gray-600">
-                <Mail className="w-3 h-3" />
-                <span className="truncate">{user.email}</span>
-              </div>
-            )}
+            <div className="flex items-center space-x-2 text-xs text-gray-600">
+              <Mail className="w-3 h-3" />
+              <span className="truncate">Usuario autenticado</span>
+            </div>
             {user?.company_id && (
               <div className="flex items-center space-x-2 text-xs text-gray-600">
                 <Building2 className="w-3 h-3" />

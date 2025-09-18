@@ -210,7 +210,7 @@ export function EmployeeMainPanel() {
       {/* Modal de edición de empleado */}
       <EmployeeFormModal
         isOpen={isEditingEmployee}
-        employee={selectedEmployee}
+        employee={selectedEmployee || undefined}
         onSubmit={handleUpdateEmployee}
         onCancel={handleCancelEdit}
         isLoading={isUpdating}

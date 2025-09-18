@@ -7,7 +7,17 @@ import { WeekViewData, EmployeeWithShifts, Shift } from '@/types/shifts/shift';
 import { getWeekRange, navigateWeek, formatDate, getWeekDays } from '@/lib/dateUtils';
 import { es } from 'date-fns/locale';
 
+export interface ShiftFilters {
+  employeeName: string;
+  role: string;
+}
+
 export function useShifts() {
+  const [filters, setFilters] = useState<ShiftFilters>({
+    employeeName: '',
+    role: 'all'
+  });
+
   const [currentWeek, setCurrentWeek] = useState(() => {
     // Crear fecha actual de forma más explícita
     const now = new Date();
@@ -124,19 +134,45 @@ export function useShifts() {
   console.log('🔍 employeesData type:', typeof employeesData);
   console.log('🔍 employeesData is array:', Array.isArray(employeesData));
 
+  // Filtrar empleados según los criterios
+  const filteredEmployees = useMemo(() => {
+    if (!employeesData) return [];
+
+    return employeesData.filter(employee => {
+      // Filtro por nombre
+      if (filters.employeeName) {
+        const fullName = `${employee.user?.first_name || ''} ${employee.user?.last_name || ''}`.toLowerCase();
+        if (!fullName.includes(filters.employeeName.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Filtro por rol
+      if (filters.role && filters.role !== 'all') {
+        const employeeRole = employee.role?.name?.toLowerCase() || '';
+        if (employeeRole !== filters.role.toLowerCase()) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [employeesData, filters]);
+
   // Procesar datos para la vista semanal
   const weekData: WeekViewData | null = useMemo(() => {
-    if (!employeesData) return null;
+    if (!filteredEmployees) return null;
 
     console.log('🔍 Generando weekData para currentWeek:', currentWeek);
-    console.log('🔍 employeesData recibido:', employeesData.length, 'empleados');
+    console.log('🔍 employeesData recibido:', employeesData?.length || 0, 'empleados');
+    console.log('🔍 filteredEmployees:', filteredEmployees.length, 'empleados después de filtros');
     
     // Usar la misma lógica de zona horaria que usamos para weekStart/weekEnd
     const weekDays = getWeekDays(currentWeekDate);
     console.log('🔍 Días de la semana generados:', weekDays.map(d => d.toISOString().split('T')[0]));
     
     // Verificar si los datos de empleados tienen turnos para la semana correcta
-    employeesData.forEach((emp, index) => {
+    filteredEmployees.forEach((emp, index) => {
       console.log(`🔍 Empleado ${index + 1} (${emp.user?.first_name} ${emp.user?.last_name}):`);
       if (emp.shifts && emp.shifts.length > 0) {
         console.log('  📅 Fechas de turnos:', emp.shifts.map(ws => ws.date));
@@ -149,12 +185,12 @@ export function useShifts() {
     const days = weekDays.map(date => {
       const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
       
-      // Contar empleados con turnos en este día
-      const employeesWithShifts = employeesData.filter(emp => 
+      // Contar empleados con turnos en este día (usando empleados filtrados)
+      const employeesWithShifts = filteredEmployees.filter(emp => 
         emp.shifts.some(ws => ws.date === dateStr && ws.shifts.length > 0)
       );
       
-      console.log(`🔍 Día ${dateStr}: ${employeesWithShifts.length} empleados con turnos`);
+      console.log(`🔍 Día ${dateStr}: ${employeesWithShifts.length} empleados con turnos (filtrados)`);
       
       return {
         date: dateStr,
@@ -171,9 +207,9 @@ export function useShifts() {
       weekStart: formatDate(weekStart, 'yyyy-MM-dd'),
       weekEnd: formatDate(weekEnd, 'yyyy-MM-dd'),
       days,
-      employees: employeesData,
+      employees: filteredEmployees,
     };
-  }, [employeesData, currentWeek, weekStart, weekEnd]);
+  }, [filteredEmployees, currentWeek, weekStart, weekEnd, currentWeekDate]);
 
   // Debug log después de que weekData esté definido
   console.log('🔍 weekData processed:', weekData ? 'yes' : 'no');
@@ -222,9 +258,22 @@ export function useShifts() {
     refetch();
   }, [refetch, queryClient]);
 
+  // Funciones para manejar filtros
+  const updateFilters = useCallback((newFilters: Partial<ShiftFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilters({
+      employeeName: '',
+      role: 'all'
+    });
+  }, []);
+
   return {
     weekData,
-    employees: employeesData || [],
+    employees: filteredEmployees || [],
+    allEmployees: employeesData || [],
     currentWeek,
     isLoading: isLoading || employeesLoading,
     error: error?.message || employeesError?.message || null,
@@ -232,6 +281,10 @@ export function useShifts() {
     goToToday,
     goToWeek,
     refreshData,
+    // Filtros
+    filters,
+    updateFilters,
+    clearFilters,
     // Debug info
     employeesData,
     employeesLoading,

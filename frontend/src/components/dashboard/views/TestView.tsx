@@ -51,13 +51,13 @@ export function TestView() {
                 <div className="flex items-center space-x-3">
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                   <span className="text-gray-700">
-                    <strong>Usuario ID:</strong> {user.sub}
+                    <strong>Usuario ID:</strong> {user.user_id}
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                   <span className="text-gray-700">
-                    <strong>Email:</strong> {user.email || 'No disponible'}
+                    <strong>Email:</strong> No disponible
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">

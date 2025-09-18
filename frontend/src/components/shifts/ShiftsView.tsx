@@ -5,6 +5,7 @@ import { ViewContainer } from '../dashboard/ViewContainer';
 import { ShiftsGrid } from './grid/ShiftsGrid';
 import { ShiftsToolbar } from './ShiftsToolbar';
 import { ShiftFormModal } from './ShiftFormModal';
+import { FiltersIndicator } from './FiltersIndicator';
 import { useShifts } from '@/hooks/shifts/useShifts';
 import { useShiftForm } from '@/hooks/shifts/useShiftForm';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,12 +20,16 @@ export function ShiftsView() {
   const {
     weekData,
     employees,
+    allEmployees,
     currentWeek,
     isLoading,
     error,
     refreshData,
     navigateWeek,
     goToToday,
+    filters,
+    updateFilters,
+    clearFilters,
     employeesData,
     employeesLoading,
     employeesError,
@@ -164,10 +169,23 @@ export function ShiftsView() {
           onGoToToday={goToToday}
           onRefresh={refreshData}
           isLoading={isLoading}
+          filters={filters}
+          onUpdateFilters={updateFilters}
+          onClearFilters={clearFilters}
+          allEmployees={allEmployees}
         />
       }
     >
       <div className="p-6">
+        {/* Indicador de filtros */}
+        <FiltersIndicator
+          filters={filters}
+          onUpdateFilters={updateFilters}
+          onClearFilters={clearFilters}
+          totalEmployees={allEmployees.length}
+          filteredEmployees={employees.length}
+        />
+
         {/* Grilla principal de turnos */}
         <FadeIn delay={0.1}>
           <ShiftsGrid

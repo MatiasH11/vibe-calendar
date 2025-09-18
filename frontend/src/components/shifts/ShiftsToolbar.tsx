@@ -3,7 +3,9 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, RotateCcw, Download, Plus, Filter } from 'lucide-react';
+import { Calendar, RotateCcw, Download, Plus, Filter, X } from 'lucide-react';
+import { ShiftFilters } from '@/hooks/shifts/useShifts';
+import { EmployeeWithShifts } from '@/types/shifts/shift';
 
 interface ShiftsToolbarProps {
   currentWeek: string;
@@ -11,6 +13,10 @@ interface ShiftsToolbarProps {
   onGoToToday: () => void;
   onRefresh: () => void;
   isLoading: boolean;
+  filters: ShiftFilters;
+  onUpdateFilters: (filters: Partial<ShiftFilters>) => void;
+  onClearFilters: () => void;
+  allEmployees: EmployeeWithShifts[];
 }
 
 export function ShiftsToolbar({
@@ -18,8 +24,24 @@ export function ShiftsToolbar({
   onNavigateWeek,
   onGoToToday,
   onRefresh,
-  isLoading
+  isLoading,
+  filters,
+  onUpdateFilters,
+  onClearFilters,
+  allEmployees
 }: ShiftsToolbarProps) {
+  // Obtener roles únicos de los empleados
+  const availableRoles = Array.from(
+    new Set(
+      allEmployees
+        .map(emp => emp.role?.name)
+        .filter(Boolean)
+        .map(role => role!.toLowerCase())
+    )
+  ).sort();
+
+  const hasActiveFilters = filters.employeeName || filters.role !== 'all';
+
   return (
     <div className="flex items-center space-x-4">
       {/* Navegación de semana */}
@@ -52,21 +74,53 @@ export function ShiftsToolbar({
 
       {/* Filtros */}
       <div className="flex items-center space-x-2">
-        <Input
-          placeholder="Filtrar empleados..."
-          className="w-48"
-        />
-        <Select>
+        <div className="relative">
+          <Input
+            placeholder="Filtrar empleados..."
+            className="w-48"
+            value={filters.employeeName}
+            onChange={(e) => onUpdateFilters({ employeeName: e.target.value })}
+          />
+          {filters.employeeName && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+              onClick={() => onUpdateFilters({ employeeName: '' })}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+        
+        <Select
+          value={filters.role}
+          onValueChange={(value) => onUpdateFilters({ role: value })}
+        >
           <SelectTrigger className="w-32">
             <SelectValue placeholder="Rol" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="bar">Bar</SelectItem>
-            <SelectItem value="cocina">Cocina</SelectItem>
-            <SelectItem value="caja">Caja</SelectItem>
+            {availableRoles.map(role => (
+              <SelectItem key={role} value={role}>
+                {role.charAt(0).toUpperCase() + role.slice(1)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
+
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClearFilters}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="w-4 h-4 mr-1" />
+            Limpiar
+          </Button>
+        )}
       </div>
 
       {/* Acciones */}

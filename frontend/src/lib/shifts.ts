@@ -81,16 +81,11 @@ export class ShiftsApiService {
     
     try {
       console.log('🔍 Making request to:', endpoint);
-      const response = await apiClient.request<{ success: boolean; data: EmployeeWithShifts[]; meta: any }>(endpoint, {
+      const response = await apiClient.request<EmployeeWithShifts[]>(endpoint, {
         method: 'GET',
       });
       
-      console.log('🔍 API Response employees for shifts:', response);
-      console.log('📊 Metadata:', response.meta);
-      console.log('📊 Response data type:', typeof response.data);
-      console.log('📊 Response data is array:', Array.isArray(response.data));
-      console.log('📊 Response data length:', response.data?.length);
-      
+
       return response.data || [];
     } catch (error) {
       console.error('❌ Error fetching employees for shifts:', error);
@@ -99,14 +94,9 @@ export class ShiftsApiService {
       console.log('🔄 Fallback: trying legacy endpoint');
       try {
         const fallbackEndpoint = `/api/v1/employees/for-shifts${query ? `?${query}` : ''}`;
-        const fallbackResponse = await apiClient.request<{ success: boolean; data: EmployeeWithShifts[]; meta: any }>(fallbackEndpoint, {
+        const fallbackResponse = await apiClient.request<EmployeeWithShifts[]>(fallbackEndpoint, {
           method: 'GET',
         });
-        
-        console.log('🔍 Fallback response:', fallbackResponse);
-        console.log('📊 Fallback data type:', typeof fallbackResponse.data);
-        console.log('📊 Fallback data is array:', Array.isArray(fallbackResponse.data));
-        console.log('📊 Fallback data length:', fallbackResponse.data?.length);
         
         return fallbackResponse.data || [];
       } catch (fallbackError) {

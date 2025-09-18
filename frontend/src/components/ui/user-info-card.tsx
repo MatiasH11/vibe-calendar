@@ -42,7 +42,7 @@ export function UserInfoCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          <PermissionBadge userType={employeeData.user_type || 'employee'} />
+          <PermissionBadge userType="employee" />
           {businessRole && <RoleBadge role={businessRole} />}
         </div>
         <div className="text-sm text-gray-600">
