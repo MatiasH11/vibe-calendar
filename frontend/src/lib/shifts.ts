@@ -26,15 +26,12 @@ export class ShiftsApiService {
   }
 
   async createShift(data: CreateShiftRequest): Promise<Shift> {
-    console.log('🔍 ShiftsApiService.createShift called with:', data);
-    
     try {
       const response = await apiClient.requestGeneric<{ success: boolean; data: Shift }>('/api/v1/shifts', {
         method: 'POST',
         body: JSON.stringify(data),
       });
       
-      console.log('✅ ShiftsApiService.createShift response:', response);
       return response.data!;
     } catch (error) {
       console.error('❌ ShiftsApiService.createShift error:', error);
@@ -76,11 +73,7 @@ export class ShiftsApiService {
     const query = queryParams.toString();
     const endpoint = `/api/v1/employees/with-shifts${query ? `?${query}` : ''}`;
     
-    console.log('🔍 getEmployeesForShifts called with:', { startDate, endDate, weekStart, weekEnd });
-    console.log('🔍 Final endpoint:', endpoint);
-    
     try {
-      console.log('🔍 Making request to:', endpoint);
       const response = await apiClient.request<EmployeeWithShifts[]>(endpoint, {
         method: 'GET',
       });
@@ -91,7 +84,6 @@ export class ShiftsApiService {
       console.error('❌ Error fetching employees for shifts:', error);
       
       // Fallback: intentar con el endpoint legacy
-      console.log('🔄 Fallback: trying legacy endpoint');
       try {
         const fallbackEndpoint = `/api/v1/employees/for-shifts${query ? `?${query}` : ''}`;
         const fallbackResponse = await apiClient.request<EmployeeWithShifts[]>(fallbackEndpoint, {
@@ -127,7 +119,6 @@ export class ShiftsApiService {
         method: 'GET',
       });
       
-      console.log('🔍 API Response employees:', response);
       
       // Transformar los datos del API al formato esperado
       const employees = (response.data || []).map(emp => ({

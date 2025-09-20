@@ -103,26 +103,3 @@ export function formatTimeSafe(time: string | Date, timezone?: string): string {
   }
 }
 
-/**
- * Debug: muestra información de zona horaria del cliente
- */
-export function debugClientTimezone(): void {
-  const timezone = getClientTimezone();
-  const now = new Date();
-  
-  console.log('🌍 Información de zona horaria del cliente:');
-  console.log('- Zona horaria:', timezone);
-  console.log('- Offset en minutos:', now.getTimezoneOffset());
-  console.log('- Offset en horas:', now.getTimezoneOffset() / 60);
-  console.log('- Hora local actual:', now.toTimeString().substring(0, 5));
-  console.log('- Hora UTC actual:', now.toISOString().substring(11, 16));
-  
-  // Ejemplo de conversión
-  const testTime = '17:00';
-  const testDate = new Date();
-  const utcTime = localTimeToUTC(testTime, testDate, timezone);
-  const backToLocal = utcTimeToLocal(utcTime, testDate, timezone);
-  
-  console.log('- Ejemplo de conversión:');
-  console.log(`  ${testTime} local → ${utcTime} UTC → ${backToLocal} local`);
-}

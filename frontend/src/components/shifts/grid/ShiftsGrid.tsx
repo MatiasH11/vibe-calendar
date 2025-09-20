@@ -4,7 +4,6 @@ import { WeekViewData, EmployeeWithShifts } from '@/types/shifts/shift';
 import { ShiftGridHeader } from './ShiftGridHeader';
 import { ShiftGridBody } from './ShiftGridBody';
 import { ShiftGridFooter } from './ShiftGridFooter';
-import { ShiftGridFooterDebug } from './ShiftGridFooterDebug';
 import { Loading } from '@/components/ui/loading';
 
 interface ShiftsGridProps {
@@ -35,10 +34,6 @@ export function ShiftsGrid({ weekData, employees, isLoading, onEditShift, onCrea
     );
   }
 
-  // Debug: Verificar que los datos coincidan
-  console.log('🔍 ShiftsGrid - weekData.days:', weekData.days.map(d => d.date));
-  console.log('🔍 ShiftsGrid - employees:', employees.length);
-  console.log('🔍 ShiftsGrid - employees shifts dates:', employees.flatMap(emp => emp.shifts.map(ws => ws.date)));
 
   return (
     <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
@@ -60,7 +55,7 @@ export function ShiftsGrid({ weekData, employees, isLoading, onEditShift, onCrea
       
       {/* Footer con suma de horas - Fijo */}
       <div className="sticky bottom-0 z-10">
-        <ShiftGridFooterDebug 
+        <ShiftGridFooter 
           days={weekData.days} 
           employees={employees}
         />

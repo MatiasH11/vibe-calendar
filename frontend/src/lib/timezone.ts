@@ -22,14 +22,6 @@ export function localTimeToUTC(localTime: string, date: Date = new Date()): stri
     const localDateTime = new Date(date);
     localDateTime.setHours(hours, minutes, 0, 0);
     
-    // Debug: mostrar información de conversión
-    console.log('🔄 localTimeToUTC:', {
-      input: localTime,
-      date: date.toISOString().split('T')[0],
-      localDateTime: localDateTime.toISOString(),
-      timezoneOffset: localDateTime.getTimezoneOffset(),
-      offsetHours: localDateTime.getTimezoneOffset() / 60
-    });
     
     // Convertir a UTC (restar el offset negativo para obtener UTC)
     // getTimezoneOffset() devuelve un valor negativo para zonas adelante de UTC
@@ -37,7 +29,6 @@ export function localTimeToUTC(localTime: string, date: Date = new Date()): stri
     
     // Devolver en formato HH:mm
     const result = utcTime.toISOString().substring(11, 16);
-    console.log('✅ localTimeToUTC result:', result);
     return result;
   } catch (error) {
     console.error('Error converting local time to UTC:', error);
@@ -58,14 +49,6 @@ export function utcTimeToLocal(utcTime: string, date: Date = new Date()): string
     const utcDateTime = new Date(date);
     utcDateTime.setUTCHours(hours, minutes, 0, 0);
     
-    // Debug: mostrar información de conversión
-    console.log('🔄 utcTimeToLocal:', {
-      input: utcTime,
-      date: date.toISOString().split('T')[0],
-      utcDateTime: utcDateTime.toISOString(),
-      timezoneOffset: utcDateTime.getTimezoneOffset(),
-      offsetHours: utcDateTime.getTimezoneOffset() / 60
-    });
     
     // Convertir a hora local (sumar el offset negativo para obtener local)
     // getTimezoneOffset() devuelve un valor negativo para zonas adelante de UTC
@@ -73,7 +56,6 @@ export function utcTimeToLocal(utcTime: string, date: Date = new Date()): string
     
     // Devolver en formato HH:mm
     const result = localTime.toTimeString().substring(0, 5);
-    console.log('✅ utcTimeToLocal result:', result);
     return result;
   } catch (error) {
     console.error('Error converting UTC time to local:', error);
@@ -155,16 +137,3 @@ export function formatTimeSafe(time: string | Date): string {
   }
 }
 
-/**
- * Debug: muestra información de zona horaria
- */
-export function debugTimezone() {
-  const now = new Date();
-  console.log('🌍 Información de zona horaria:');
-  console.log('- Zona horaria del usuario:', getUserTimezone());
-  console.log('- Offset en minutos:', now.getTimezoneOffset());
-  console.log('- Hora local actual:', dateToLocalTime(now));
-  console.log('- Hora UTC actual:', dateToUTCTime(now));
-  console.log('- Ejemplo: 20:00 local →', localTimeToUTC('20:00'));
-  console.log('- Ejemplo: 23:00 UTC →', utcTimeToLocal('23:00'));
-}

@@ -121,21 +121,6 @@ export function ShiftsView() {
     );
   }
 
-  // Debug info
-  console.log('🔍 ShiftsView Debug:', {
-    user,
-    isAuthenticated,
-    userType: user?.user_type,
-    roleName: user?.role_name,
-    canManageShifts,
-    isAdmin,
-    employees,
-    employeesData,
-    employeesLoading,
-    employeesError,
-    isLoading,
-    error
-  });
 
   // Mostrar mensaje si no hay empleados
   if (!isLoading && !employeesLoading && employees.length === 0) {

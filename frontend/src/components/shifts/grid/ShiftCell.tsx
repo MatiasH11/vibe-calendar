@@ -22,14 +22,6 @@ export function ShiftCell({ shift, employee, day, onEdit }: ShiftCellProps) {
     }
   };
 
-  // Debug: ver qué está llegando del backend
-  console.log('🔍 ShiftCell Debug:', {
-    shiftId: shift.id,
-    start_time: shift.start_time,
-    end_time: shift.end_time,
-    start_time_type: typeof shift.start_time,
-    end_time_type: typeof shift.end_time,
-  });
 
   // Obtener los tiempos formateados usando la nueva función segura
   const startTime = formatTimeSafe(shift.start_time);

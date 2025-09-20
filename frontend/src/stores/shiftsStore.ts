@@ -64,7 +64,6 @@ export const useShiftsStore = create<ShiftsState>((set, get) => ({
     set({ isLoading: true });
     try {
       // TODO: Implementar refresh de datos
-      console.log('Refreshing week data...');
     } finally {
       set({ isLoading: false });
     }

@@ -10,6 +10,8 @@
     "test": "jest --detectOpenHandles --runInBand",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio",
+    "db:studio": "prisma studio",
     "postinstall": "tsc && prisma generate"
   },
   "dependencies": {

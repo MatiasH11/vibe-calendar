@@ -99,10 +99,7 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>, shiftId?: num
   }, [formData]);
 
   const submit = useCallback(async () => {
-    console.log('🔍 useShiftForm submit called with:', { formData, shiftId });
-    
     if (!validate()) {
-      console.log('❌ Validation failed');
       return;
     }
 
@@ -117,23 +114,14 @@ export function useShiftForm(initialData?: Partial<ShiftFormData>, shiftId?: num
         end_time: localTimeToUTC(formData.end_time, shiftDate, clientTimezone),
       };
 
-      console.log('🌍 Converting times to UTC (flexible):', {
-        clientTimezone,
-        local: { start: formData.start_time, end: formData.end_time },
-        utc: { start: utcData.start_time, end: utcData.end_time }
-      });
 
       if (shiftId) {
         // Actualizar turno existente
-        console.log('🔄 Updating shift:', { id: shiftId, data: utcData });
         await updateMutation.mutateAsync({ id: shiftId, data: utcData });
       } else {
         // Crear nuevo turno
-        console.log('➕ Creating shift:', utcData);
         await createMutation.mutateAsync(utcData);
       }
-      
-      console.log('✅ Shift operation successful');
       
       // Reset form on success
       setFormData({

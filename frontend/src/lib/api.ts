@@ -46,12 +46,6 @@ export class ApiClient {
       headers.Authorization = `Bearer ${this.token}`;
     }
 
-    console.log('🔍 API Request:', {
-      url: `${this.baseURL}${endpoint}`,
-      method: options.method || 'GET',
-      headers,
-      hasToken: !!this.token
-    });
 
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -61,11 +55,6 @@ export class ApiClient {
 
       const data = await response.json();
 
-      console.log('🔍 API Response:', {
-        status: response.status,
-        ok: response.ok,
-        data
-      });
 
       if (!response.ok) {
         throw new Error(data.error?.message || `HTTP ${response.status}: ${response.statusText}`);
@@ -177,11 +166,8 @@ export class ApiClient {
 
   // Método genérico para requests (usado por servicios específicos)
   async requestGeneric<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    console.log('🔍 ApiClient.requestGeneric called:', { endpoint, options });
-    
     try {
       const response = await this.request<{ success: boolean; data: T }>(endpoint, options);
-      console.log('✅ ApiClient.requestGeneric response:', response);
       return (response as any).data!;
     } catch (error) {
       console.error('❌ ApiClient.requestGeneric error:', error);

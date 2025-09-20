@@ -8,8 +8,6 @@
  * @returns Número de minutos desde medianoche
  */
 export function timeToMinutes(timeString: string): number {
-  console.log(`🕐 Convirtiendo tiempo: "${timeString}"`);
-
   if (!timeString || typeof timeString !== 'string') {
     console.error(`❌ Tiempo inválido: "${timeString}"`);
     return 0;
@@ -22,7 +20,6 @@ export function timeToMinutes(timeString: string): number {
     try {
       const date = new Date(timeString);
       timeToProcess = date.toTimeString().slice(0, 5); // HH:mm
-      console.log(`🕐 Tiempo ISO convertido a: "${timeToProcess}"`);
     } catch (error) {
       console.error(`❌ Error al convertir tiempo ISO: "${timeString}"`, error);
       return 0;
@@ -44,7 +41,6 @@ export function timeToMinutes(timeString: string): number {
   }
 
   const totalMinutes = hours * 60 + minutes;
-  console.log(`📊 Minutos calculados: ${totalMinutes}`);
 
   return totalMinutes;
 }
@@ -87,7 +83,6 @@ export function calculateShiftDuration(startTime: string, endTime: string): numb
   }
 
   const hours = durationMinutes / 60; // Convertir a horas
-  console.log(`⏱️ ${startTime}-${endTime} = ${hours}h`);
 
   return hours;
 }
@@ -137,10 +132,6 @@ export function calculateDailyHours(
   }>,
   days: Array<{ date: string }>
 ): Array<{ date: string; totalHours: number }> {
-  console.log('🚀 calculateDailyHours INICIANDO');
-  console.log('🚀 employees:', employees);
-  console.log('🚀 days:', days);
-
   // Verificar que tenemos datos válidos
   if (!employees || !Array.isArray(employees) || employees.length === 0) {
     console.warn('⚠️ calculateDailyHours: No hay empleados o datos inválidos');
@@ -152,70 +143,29 @@ export function calculateDailyHours(
     return [];
   }
 
-  console.log('🔍 calculateDailyHours - Empleados:', employees.length);
-  console.log('🔍 calculateDailyHours - Días:', days.length);
-
-  // Debug: Mostrar todas las fechas disponibles
-  console.log('📅 Fechas de días:', days.map(d => d.date));
-  console.log('📅 Total empleados:', employees.length);
-
-  employees.forEach((emp, empIndex) => {
-    console.log(`👤 Empleado ${empIndex + 1}:`);
-    console.log('📅 Fechas de turnos:', emp.shifts.map(ws => ws.date));
-    console.log('📅 Total shifts por empleado:', emp.shifts.length);
-
-    emp.shifts.forEach((ws, wsIndex) => {
-      console.log(`  📅 Shift ${wsIndex + 1} (${ws.date}): ${ws.shifts.length} turnos`);
-      if (ws.shifts && ws.shifts.length > 0) {
-        ws.shifts.forEach((shift, shiftIndex) => {
-          console.log(`    🕐 Turno ${shiftIndex + 1}: ${shift.start_time} - ${shift.end_time}`);
-        });
-      } else {
-        console.log(`    ⚠️ No hay turnos en este shift`);
-      }
-    });
-  });
 
   const result = days.map(day => {
-    console.log(`\n🔍 Procesando día: ${day.date}`);
-
     // Obtener todos los turnos para este día
     const dayShifts = employees.flatMap((employee, empIndex) => {
       if (!employee || !employee.shifts || !Array.isArray(employee.shifts)) {
-        console.log(`  ⚠️ Empleado ${empIndex + 1}: No tiene shifts o no es array`);
         return [];
       }
-
-      console.log(`  👤 Empleado ${empIndex + 1}: Buscando fecha ${day.date}`);
 
       // Buscar turnos para este día específico
       const employeeDayShifts = employee.shifts.find(ws => {
         if (!ws || !ws.date) {
-          console.log(`    ⚠️ Shift inválido:`, ws);
           return false;
         }
-        const match = ws.date === day.date;
-        console.log(`    🔍 Comparando: "${ws.date}" === "${day.date}" ? ${match}`);
-        return match;
+        return ws.date === day.date;
       });
 
       if (employeeDayShifts && employeeDayShifts.shifts && Array.isArray(employeeDayShifts.shifts)) {
-        console.log(`    ✅ Encontrado: ${employeeDayShifts.shifts.length} turnos`);
-        if (day.date === '2025-09-07') {
-          console.log(`    🔍 DEBUG DOMINGO - Turnos encontrados:`, employeeDayShifts.shifts);
-        }
         return employeeDayShifts.shifts;
       } else {
-        console.log(`    ❌ No encontrado o estructura inválida`);
         return [];
       }
     });
 
-    console.log(`📊 Total turnos encontrados para ${day.date}: ${dayShifts.length}`);
-
-    if (day.date === '2025-09-07') {
-      console.log(`🔍 DEBUG DOMINGO - dayShifts:`, dayShifts);
-    }
 
     // Convertir start_time y end_time a string si son Date objects
     const normalizedShifts = dayShifts.map((shift, shiftIndex) => {
@@ -247,7 +197,6 @@ export function calculateDailyHours(
         return null;
       }
 
-      console.log(`🕐 Turno ${shiftIndex + 1}: ${startTime} - ${endTime}`);
 
       return {
         start_time: startTime,
@@ -257,19 +206,11 @@ export function calculateDailyHours(
 
     const totalHours = calculateTotalHours(normalizedShifts);
 
-    console.log(`📊 Total horas para ${day.date}: ${totalHours} (${normalizedShifts.length} turnos válidos)\n`);
-
-    if (day.date === '2025-09-07') {
-      console.log(`🔍 DEBUG DOMINGO - normalizedShifts:`, normalizedShifts);
-      console.log(`🔍 DEBUG DOMINGO - totalHours:`, totalHours);
-    }
-
     return {
       date: day.date,
       totalHours
     };
   });
 
-  console.log('🏁 calculateDailyHours TERMINANDO - Resultado:', result);
   return result;
 }

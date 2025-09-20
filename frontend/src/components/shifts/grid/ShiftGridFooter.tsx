@@ -10,24 +10,11 @@ interface ShiftGridFooterProps {
 }
 
 export function ShiftGridFooter({ days, employees }: ShiftGridFooterProps) {
-  console.log('🔍 ShiftGridFooter recibió:', {
-    days,
-    employees: employees.map(emp => ({
-      id: emp.id,
-      name: emp.user?.first_name + ' ' + emp.user?.last_name,
-      shifts: emp.shifts
-    }))
-  });
-
   // Calcular las horas totales por día
   const dailyHours = calculateDailyHours(employees, days);
   
-  console.log('📊 dailyHours calculado:', dailyHours);
-  
   // Calcular el total general
   const totalGeneral = dailyHours.reduce((sum, day) => sum + day.totalHours, 0);
-  
-  console.log('📊 totalGeneral:', totalGeneral);
 
   return (
     <div className="grid grid-cols-8 bg-gray-100 border-t border-gray-200">
