@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { apiClient } from '@/lib/api';
 import { Employee } from '@/types/employee';
@@ -8,7 +8,7 @@ export function useUserContext() {
   const [employeeData, setEmployeeData] = useState<Employee | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchEmployeeData = async () => {
+  const fetchEmployeeData = useCallback(async () => {
     if (!user || !isAuthenticated) {
       setEmployeeData(null);
       return;
@@ -25,11 +25,11 @@ export function useUserContext() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, isAuthenticated]);
 
   useEffect(() => {
     fetchEmployeeData();
-  }, [user, isAuthenticated]);
+  }, [fetchEmployeeData]);
 
   const getUserFullName = (): string => {
     if (employeeData) {

@@ -3,6 +3,7 @@
 import { AuthRedirect } from '@/components/auth/AuthRedirect';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardProvider, useDashboard } from '@/components/dashboard/DashboardProvider';
+
 import { cn } from '@/lib/utils';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {

@@ -12,9 +12,10 @@ interface ShiftsGridProps {
   isLoading: boolean;
   onEditShift?: (shift: any) => void;
   onCreateShift?: (employeeId: number, date: string) => void;
+  onRightClick?: (event: React.MouseEvent, shift: any) => void;
 }
 
-export function ShiftsGrid({ weekData, employees, isLoading, onEditShift, onCreateShift }: ShiftsGridProps) {
+export function ShiftsGrid({ weekData, employees, isLoading, onEditShift, onCreateShift, onRightClick }: ShiftsGridProps) {
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg border shadow-sm p-8">
@@ -50,6 +51,7 @@ export function ShiftsGrid({ weekData, employees, isLoading, onEditShift, onCrea
           weekData={weekData}
           onEditShift={onEditShift}
           onCreateShift={onCreateShift}
+          onRightClick={onRightClick}
         />
       </div>
       

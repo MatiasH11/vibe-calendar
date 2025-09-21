@@ -9,9 +9,10 @@ interface ShiftGridBodyProps {
   weekData: WeekViewData;
   onEditShift?: (shift: any) => void;
   onCreateShift?: (employeeId: number, date: string) => void;
+  onRightClick?: (event: React.MouseEvent, shift: any) => void;
 }
 
-export function ShiftGridBody({ employees, weekData, onEditShift, onCreateShift }: ShiftGridBodyProps) {
+export function ShiftGridBody({ employees, weekData, onEditShift, onCreateShift, onRightClick }: ShiftGridBodyProps) {
   return (
     <div className="divide-y">
       {employees.map((employee) => (
@@ -56,6 +57,7 @@ export function ShiftGridBody({ employees, weekData, onEditShift, onCreateShift 
                         employee={employee}
                         day={day}
                         onEdit={onEditShift}
+                        onRightClick={onRightClick}
                       />
                     ))}
                   </div>

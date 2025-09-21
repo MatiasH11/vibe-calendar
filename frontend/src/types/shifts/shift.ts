@@ -75,3 +75,32 @@ export interface ShiftListResponse {
 // Re-export types from other files
 export type { WeekViewData, DayData, ShiftCell, ShiftGridProps } from './calendar';
 export type { EmployeeWithShifts, ShiftByDay, EmployeeShiftSummary } from './employee';
+export type { 
+  ShiftTemplate, 
+  CreateShiftTemplateRequest, 
+  UpdateShiftTemplateRequest,
+  EmployeeShiftPattern,
+  TimeSuggestion,
+  ShiftDuplicationRequest,
+  BulkShiftCreationRequest,
+  BulkOperationPreview,
+  ConflictInfo,
+  ConflictValidationRequest,
+  ConflictValidationResponse,
+  ConflictResolution,
+  ConflictResolutionOptions,
+  TemplateListResponse,
+  TemplateFilters,
+  EmployeePatternResponse,
+  SuggestionRequest
+} from './templates';
+export type {
+  KeyboardShortcut,
+  ShortcutContext,
+  ShortcutAction,
+  ShortcutActionType,
+  ShortcutContextState,
+  ShortcutHelpItem,
+  UseKeyboardShortcutsOptions,
+  KeyboardShortcutsState
+} from './shortcuts';

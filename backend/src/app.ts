@@ -10,6 +10,7 @@ import authRouter from './routes/auth.routes';
 import roleRouter from './routes/role.routes';
 import employeeRouter from './routes/employee.routes';
 import shiftRouter from './routes/shift.routes';
+import shiftTemplateRouter from './routes/shift-template.routes';
 // NUEVA: Ruta de estadísticas
 import statisticsRouter from './routes/statistics.routes';
 
@@ -57,6 +58,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/roles', roleRouter);
 app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/shifts', shiftRouter);
+app.use('/api/v1/shift-templates', shiftTemplateRouter);
 // NUEVA: Ruta de estadísticas
 app.use('/api/v1/statistics', statisticsRouter);
 

@@ -1,0 +1,1 @@
+export { SimpleShortcutHelp } from './SimpleShortcutHelp';

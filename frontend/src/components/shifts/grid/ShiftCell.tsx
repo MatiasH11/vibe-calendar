@@ -11,14 +11,21 @@ interface ShiftCellProps {
   employee: EmployeeWithShifts;
   day: DayData;
   onEdit?: (shift: Shift) => void;
+  onRightClick?: (event: React.MouseEvent, shift: Shift) => void;
 }
 
-export function ShiftCell({ shift, employee, day, onEdit }: ShiftCellProps) {
+export function ShiftCell({ shift, employee, day, onEdit, onRightClick }: ShiftCellProps) {
   const roleColorClass = ROLE_COLORS[employee.role.name as keyof typeof ROLE_COLORS] || ROLE_COLORS.default;
   
   const handleClick = () => {
     if (onEdit) {
       onEdit(shift);
+    }
+  };
+
+  const handleRightClick = (event: React.MouseEvent) => {
+    if (onRightClick) {
+      onRightClick(event, shift);
     }
   };
 
@@ -31,6 +38,7 @@ export function ShiftCell({ shift, employee, day, onEdit }: ShiftCellProps) {
     <div
       className={`${roleColorClass} text-white text-xs p-2 rounded cursor-pointer hover:opacity-80 transition-opacity min-h-[60px] flex flex-col justify-center`}
       onClick={handleClick}
+      onContextMenu={handleRightClick}
       title={`${employee.user.first_name} ${employee.user.last_name} - ${startTime} a ${endTime}`}
     >
       <div className="font-medium text-center leading-tight">

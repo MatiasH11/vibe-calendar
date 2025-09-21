@@ -26,6 +26,7 @@ model company {
 
   roles               role[]
   company_employees   company_employee[]
+  shift_templates     shift_template[]
 }
 
 enum user_type {
@@ -45,6 +46,7 @@ model user {
   deleted_at   DateTime?
 
   company_employees company_employee[]
+  created_shift_templates shift_template[]
 }
 
 model role {
@@ -77,6 +79,7 @@ model company_employee {
   user    user    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   role    role    @relation(fields: [role_id], references: [id], onDelete: Restrict)
   shifts  shift[]
+  shift_patterns employee_shift_pattern[]
 
   @@unique([company_id, user_id])
 }
@@ -96,6 +99,44 @@ model shift {
   company_employee company_employee @relation(fields: [company_employee_id], references: [id], onDelete: Cascade)
 
   @@index([company_employee_id, shift_date])
+}
+
+model shift_template {
+  id          Int      @id @default(autoincrement())
+  company_id  Int
+  name        String   @db.VarChar(100)
+  description String?
+  start_time  DateTime @db.Time
+  end_time    DateTime @db.Time
+  usage_count Int      @default(0)
+  created_by  Int
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  deleted_at  DateTime?
+
+  company    company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  created_by_user user @relation(fields: [created_by], references: [id], onDelete: Restrict)
+
+  @@unique([company_id, name])
+  @@index([company_id, deleted_at])
+  @@index([company_id, usage_count(sort: Desc)])
+}
+
+model employee_shift_pattern {
+  id                   Int      @id @default(autoincrement())
+  company_employee_id  Int
+  start_time           DateTime @db.Time
+  end_time             DateTime @db.Time
+  frequency_count      Int      @default(1)
+  last_used            DateTime @default(now())
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  company_employee company_employee @relation(fields: [company_employee_id], references: [id], onDelete: Cascade)
+
+  @@unique([company_employee_id, start_time, end_time])
+  @@index([company_employee_id])
+  @@index([frequency_count(sort: Desc)])
 }
 
 

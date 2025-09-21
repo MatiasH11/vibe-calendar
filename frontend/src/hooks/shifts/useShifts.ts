@@ -32,7 +32,7 @@ export function useShifts() {
 
   // Obtener rango de la semana actual
   // Crear la fecha de forma explícita para evitar problemas de zona horaria
-  const currentWeekDate = new Date(currentWeek + 'T00:00:00');
+  const currentWeekDate = useMemo(() => new Date(currentWeek + 'T00:00:00'), [currentWeek]);
   const { start: weekStart, end: weekEnd } = getWeekRange(currentWeekDate);
 
   // Query para obtener turnos de la semana
@@ -126,7 +126,7 @@ export function useShifts() {
       days,
       employees: filteredEmployees,
     };
-  }, [filteredEmployees, currentWeek, weekStart, weekEnd, currentWeekDate]);
+  }, [filteredEmployees, weekStart, weekEnd, currentWeekDate]);
 
   // Navegación de semana
   const navigateWeekCallback = useCallback((direction: 'prev' | 'next') => {

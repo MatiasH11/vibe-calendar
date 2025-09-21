@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { LoginRequest, RegisterRequest, JWTPayload } from '@/types/auth';
@@ -10,7 +10,7 @@ export function useAuth() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const router = useRouter();
 
-  const initializeAuth = async () => {
+  const initializeAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
       if (token) {
@@ -29,12 +29,12 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Inicializar usuario al cargar
   useEffect(() => {
     initializeAuth();
-  }, []);
+  }, [initializeAuth]);
 
   const login = async (data: LoginRequest) => {
     try {
@@ -69,7 +69,7 @@ export function useAuth() {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       // Limpiar estado local
       setUser(null);
@@ -83,7 +83,7 @@ export function useAuth() {
     } catch (error) {
       console.error('Logout error:', error);
     }
-  };
+  }, [router]);
 
   const register = async (data: RegisterRequest) => {
     try {
