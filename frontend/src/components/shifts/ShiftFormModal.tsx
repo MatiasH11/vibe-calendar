@@ -6,6 +6,8 @@ import { EnhancedShiftForm } from './forms/EnhancedShiftForm';
 import { Shift, EmployeeWithShifts } from '@/types/shifts/shift';
 import { ShiftFormData } from '@/types/shifts/forms';
 import { formatTimeSafe } from '@/lib/timezone-client';
+import { normalizeDateForForm } from '@/lib/dateUtils';
+import { normalizeTimeForInput } from '@/lib/form-utils';
 import { useShiftsStore } from '@/stores/shiftsStore';
 import { useEffect, useCallback } from 'react';
 
@@ -61,16 +63,16 @@ export function ShiftFormModal({
     }
   }, [bulkMode, storeBulkMode, setBulkMode]);
 
-  // Preparar datos iniciales
+  // Preparar datos iniciales - dejar que los hooks hagan la conversión UTC→local
   const initialData: Partial<ShiftFormData> = shift ? {
     company_employee_id: shift.company_employee_id,
-    shift_date: shift.shift_date,
-    start_time: formatTimeSafe(shift.start_time),
-    end_time: formatTimeSafe(shift.end_time),
+    shift_date: normalizeDateForForm(shift.shift_date),
+    start_time: typeof shift.start_time === 'string' ? shift.start_time : shift.start_time.toString(),
+    end_time: typeof shift.end_time === 'string' ? shift.end_time : shift.end_time.toString(),
     notes: shift.notes || '',
   } : employee && selectedDate ? {
     company_employee_id: employee.id,
-    shift_date: selectedDate,
+    shift_date: normalizeDateForForm(selectedDate),
     start_time: '',
     end_time: '',
     notes: '',
@@ -139,6 +141,7 @@ export function ShiftFormModal({
             enableSuggestions={enableSuggestions}
             enableShortcuts={enableShortcuts && shortcutsEnabled}
             enableBulkMode={bulkMode || storeBulkMode}
+            shiftId={shift?.id} // Pasar shiftId para detectar edición
           />
         ) : (
           <ShiftForm
@@ -147,6 +150,7 @@ export function ShiftFormModal({
             onSubmit={onSubmit}
             onCancel={onCancel}
             isLoading={isLoading}
+            shiftId={shift?.id} // Pasar shiftId para detectar edición
           />
         )}
       </DialogContent>

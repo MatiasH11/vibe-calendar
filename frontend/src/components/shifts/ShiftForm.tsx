@@ -15,7 +15,8 @@ export function ShiftForm({
   employees, 
   onSubmit, 
   onCancel, 
-  isLoading 
+  isLoading,
+  shiftId // Agregar shiftId prop
 }: ShiftFormProps) {
   const {
     formData,
@@ -27,7 +28,7 @@ export function ShiftForm({
     validate,
     submit,
     reset,
-  } = useShiftForm(initialData);
+  } = useShiftForm(initialData, shiftId);
 
   // El hook useShiftForm ya maneja la actualización de datos
 

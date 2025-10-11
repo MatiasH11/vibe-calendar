@@ -91,7 +91,10 @@ export function useConflictValidation() {
       
       // Validación defensiva: asegurar que la respuesta tiene la estructura esperada
       if (!result || typeof result !== 'object') {
-        console.warn('⚠️ API returned invalid conflict validation response:', result);
+        // Solo mostrar warning si no es undefined (estado de carga normal)
+        if (result !== undefined) {
+          console.warn('⚠️ API returned invalid conflict validation response:', result);
+        }
         return {
           has_conflicts: false,
           conflicts: [],
@@ -106,7 +109,10 @@ export function useConflictValidation() {
         total_conflicts: typeof result.total_conflicts === 'number' ? result.total_conflicts : 0
       };
     } catch (error) {
-      console.error('❌ Conflict validation error:', error);
+      // Solo loggear errores reales, no estados de carga o 404
+      if (error instanceof Error && !error.message.includes('404')) {
+        console.error('❌ Conflict validation error:', error);
+      }
       
       // En lugar de lanzar el error, retornar una respuesta segura
       // para que la UI no se rompa

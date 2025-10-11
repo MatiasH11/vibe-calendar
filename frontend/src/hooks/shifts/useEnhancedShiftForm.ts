@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { shiftsApiService } from '@/lib/shifts';
 import { 
@@ -16,9 +16,20 @@ import {
   ShiftTemplate,
   ConflictValidationRequest 
 } from '@/types/shifts/templates';
-import { localTimeToUTC, getClientTimezone } from '@/lib/timezone-client';
+import { localTimeToUTC, utcTimeToLocal, getClientTimezone } from '@/lib/timezone-client';
 import { useTimeSuggestions, useConflictValidation } from '@/hooks/shifts/useEnhancedShifts';
 import { useShiftTemplates } from '@/hooks/shifts/useShiftTemplates';
+import { 
+  validateInitialShiftData, 
+  normalizeDateForInput, 
+  normalizeTimeForInput,
+  createInitialLoadingStates,
+  handleFormError,
+  FormLoadingStates,
+  createDebouncedFunction,
+  withTimeout
+} from '@/lib/form-utils';
+import { normalizeDateForForm } from '@/lib/dateUtils';
 
 export function useEnhancedShiftForm(
   initialData?: Partial<EnhancedShiftFormData>, 
@@ -40,9 +51,9 @@ export function useEnhancedShiftForm(
   const [formData, setFormData] = useState<EnhancedShiftFormData>({
     // Basic shift data
     company_employee_id: initialData?.company_employee_id || 0,
-    shift_date: initialData?.shift_date || '',
-    start_time: initialData?.start_time || '',
-    end_time: initialData?.end_time || '',
+    shift_date: normalizeDateForForm(initialData?.shift_date) || '',
+    start_time: normalizeTimeForInput(initialData?.start_time, !!shiftId) || '',
+    end_time: normalizeTimeForInput(initialData?.end_time, !!shiftId) || '',
     notes: initialData?.notes || '',
     
     // Enhanced functionality
@@ -64,6 +75,11 @@ export function useEnhancedShiftForm(
     lastValidated: null,
   });
 
+  const [loadingStates, setLoadingStates] = useState<FormLoadingStates>(createInitialLoadingStates());
+  const initialDataApplied = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const queryClient = useQueryClient();
 
   // Hooks for enhanced functionality
@@ -72,34 +88,85 @@ export function useEnhancedShiftForm(
   
   const suggestionRequest = useMemo(() => {
     if (!enableSuggestions || !formData.company_employee_id) return null;
+    
+    // Asegurar que la fecha esté en formato yyyy-MM-dd
+    let formattedDate = formData.shift_date;
+    if (formattedDate && formattedDate.includes('T')) {
+      // Si es una fecha ISO, extraer solo la parte de fecha
+      formattedDate = formattedDate.split('T')[0];
+    }
+    
     return {
       employee_id: formData.company_employee_id,
-      date: formData.shift_date || undefined,
+      date: formattedDate || undefined,
       limit: 5
     };
   }, [enableSuggestions, formData.company_employee_id, formData.shift_date]);
 
   const { data: suggestions = [] } = useTimeSuggestions(suggestionRequest);
 
-  // Update formData when initialData changes
+  // Update formData when initialData changes - con validación mejorada
   useEffect(() => {
-    if (initialData) {
-      setFormData(prev => ({
-        ...prev,
-        ...initialData,
-        selected_employees: initialData.selected_employees || prev.selected_employees,
-        selected_dates: initialData.selected_dates || prev.selected_dates,
-      }));
+    // Solo aplicar initialData una vez y si es válido
+    if (initialData && !initialDataApplied.current && validateInitialShiftData(initialData)) {
+      setLoadingStates(prev => ({ ...prev, initializing: true }));
+      
+      try {
+        setFormData(prev => ({
+          ...prev,
+          company_employee_id: initialData.company_employee_id ?? prev.company_employee_id,
+          shift_date: normalizeDateForForm(initialData.shift_date) || prev.shift_date,
+          start_time: normalizeTimeForInput(initialData.start_time, !!shiftId) || prev.start_time,
+          end_time: normalizeTimeForInput(initialData.end_time, !!shiftId) || prev.end_time,
+          notes: initialData.notes ?? prev.notes,
+          template_id: initialData.template_id ?? prev.template_id,
+          use_template: initialData.use_template ?? prev.use_template,
+          bulk_mode: initialData.bulk_mode ?? prev.bulk_mode,
+          selected_employees: initialData.selected_employees || prev.selected_employees,
+          selected_dates: initialData.selected_dates || prev.selected_dates,
+          duplicate_source: initialData.duplicate_source ?? prev.duplicate_source,
+          skip_conflict_validation: initialData.skip_conflict_validation ?? prev.skip_conflict_validation,
+        }));
+        
+        initialDataApplied.current = true;
+      } catch (error) {
+        console.error('Error applying initial data:', error);
+      } finally {
+        setLoadingStates(prev => ({ ...prev, initializing: false }));
+      }
     }
   }, [initialData]);
 
-  // Real-time conflict validation
+  // Real-time conflict validation con manejo de race conditions mejorado
   useEffect(() => {
     if (!enableConflictValidation || formData.skip_conflict_validation) return;
     if (!formData.company_employee_id || !formData.shift_date || !formData.start_time || !formData.end_time) return;
+    
+    // NUNCA validar conflictos durante la inicialización
+    if (loadingStates.initializing) return;
+    
+    // Para turnos existentes (edición), NO validar automáticamente NUNCA
+    // La validación solo debe ocurrir para turnos nuevos o cuando el usuario
+    // explícitamente solicite la validación
+    if (shiftId || initialData?.company_employee_id) {
+      return; // COMPLETAMENTE deshabilitar validación automática para edición
+    }
 
+    // Cancelar validación anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+    }
+
+    // Crear nuevo controller para cancelación
+    abortControllerRef.current = new AbortController();
+    
     const validateAsync = async () => {
       setValidationState(prev => ({ ...prev, isValidating: true }));
+      setLoadingStates(prev => ({ ...prev, validating: true }));
       
       try {
         const validationRequest: ConflictValidationRequest = {
@@ -111,7 +178,16 @@ export function useEnhancedShiftForm(
           }]
         };
 
-        const result = await validateConflicts(validationRequest);
+        // Usar timeout wrapper para evitar validaciones que cuelguen
+        const result = await withTimeout(
+          validateConflicts(validationRequest),
+          3000 // 3 segundos timeout
+        );
+        
+        // Verificar si la operación fue cancelada
+        if (abortControllerRef.current?.signal.aborted) {
+          return;
+        }
         
         // Validación defensiva: verificar que result existe y tiene la estructura esperada
         if (!result || typeof result !== 'object') {
@@ -142,18 +218,41 @@ export function useEnhancedShiftForm(
           setErrors(prev => ({ ...prev, conflicts: undefined }));
         }
       } catch (error) {
+        // Ignorar errores de cancelación
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        
         console.error('❌ Conflict validation error:', error);
+        const errorMessage = handleFormError(error, 'conflict validation');
+        
         setValidationState(prev => ({ 
           ...prev, 
           isValidating: false,
           lastValidated: new Date(),
         }));
+        
+        // Solo mostrar error si no es timeout
+        if (!(error instanceof Error && error.message?.includes('timeout'))) {
+          setErrors(prev => ({ ...prev, conflicts: errorMessage }));
+        }
+      } finally {
+        setLoadingStates(prev => ({ ...prev, validating: false }));
       }
     };
 
-    // Debounce validation
-    const timeoutId = setTimeout(validateAsync, 500);
-    return () => clearTimeout(timeoutId);
+    // Debounce validation - solo para turnos nuevos
+    const delay = 500;
+    validationTimeoutRef.current = setTimeout(validateAsync, delay);
+    
+    return () => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [
     enableConflictValidation,
     formData.company_employee_id,
@@ -203,15 +302,27 @@ export function useEnhancedShiftForm(
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
 
+    // Debounce para fecha - evitar errores temporales durante el cambio
+    if (field === 'shift_date') {
+      // Limpiar error de fecha temporalmente durante el cambio
+      if (errors.shift_date) {
+        setErrors(prev => ({ ...prev, shift_date: undefined }));
+      }
+    }
+
     // Special handling for template selection
     if (field === 'template_id' && value && templates) {
       const selectedTemplate = templates.find(t => t.id === value);
       if (selectedTemplate) {
+        const clientTimezone = getClientTimezone();
+        const today = new Date();
+        
         setFormData(prev => ({
           ...prev,
           template_id: value,
-          start_time: selectedTemplate.start_time,
-          end_time: selectedTemplate.end_time,
+          // Convertir horarios UTC de la plantilla a local para mostrar al usuario
+          start_time: utcTimeToLocal(selectedTemplate.start_time, today, clientTimezone),
+          end_time: utcTimeToLocal(selectedTemplate.end_time, today, clientTimezone),
           use_template: true,
         }));
       }
@@ -240,11 +351,15 @@ export function useEnhancedShiftForm(
 
   // Apply template
   const applyTemplate = useCallback((template: ShiftTemplate) => {
+    const clientTimezone = getClientTimezone();
+    const today = new Date();
+    
     setFormData(prev => ({
       ...prev,
       template_id: template.id,
-      start_time: template.start_time,
-      end_time: template.end_time,
+      // Convertir horarios UTC de la plantilla a local para mostrar al usuario
+      start_time: utcTimeToLocal(template.start_time, today, clientTimezone),
+      end_time: utcTimeToLocal(template.end_time, today, clientTimezone),
       use_template: true,
     }));
     
@@ -258,10 +373,14 @@ export function useEnhancedShiftForm(
 
   // Apply suggestion
   const applySuggestion = useCallback((suggestion: TimeSuggestion) => {
+    const clientTimezone = getClientTimezone();
+    const today = new Date();
+    
     setFormData(prev => ({
       ...prev,
-      start_time: suggestion.start_time,
-      end_time: suggestion.end_time,
+      // Convertir horarios UTC de la sugerencia a local para mostrar al usuario
+      start_time: utcTimeToLocal(suggestion.start_time, today, clientTimezone),
+      end_time: utcTimeToLocal(suggestion.end_time, today, clientTimezone),
       template_id: suggestion.template_id,
       use_template: !!suggestion.template_id,
     }));
@@ -274,6 +393,59 @@ export function useEnhancedShiftForm(
     }));
   }, []);
 
+  // Manual conflict validation - solo cuando el usuario lo solicite
+  const validateConflictsManually = useCallback(async () => {
+    if (!enableConflictValidation || !formData.company_employee_id || !formData.shift_date || !formData.start_time || !formData.end_time) {
+      return;
+    }
+
+    setValidationState(prev => ({ ...prev, isValidating: true }));
+    setLoadingStates(prev => ({ ...prev, validating: true }));
+    
+    try {
+      const validationRequest: ConflictValidationRequest = {
+        shifts: [{
+          company_employee_id: formData.company_employee_id,
+          shift_date: formData.shift_date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+        }]
+      };
+
+      const result = await withTimeout(
+        validateConflicts(validationRequest),
+        3000
+      );
+      
+      if (!result || typeof result !== 'object') {
+        console.warn('⚠️ Conflict validation returned invalid result:', result);
+        return;
+      }
+
+      const hasConflicts = Boolean(result.has_conflicts);
+      const conflicts = Array.isArray(result.conflicts) ? result.conflicts : [];
+
+      setValidationState(prev => ({
+        ...prev,
+        isValidating: false,
+        hasConflicts,
+        conflicts,
+        lastValidated: new Date(),
+      }));
+
+      if (!hasConflicts && errors.conflicts) {
+        setErrors(prev => ({ ...prev, conflicts: undefined }));
+      }
+    } catch (error) {
+      console.error('❌ Manual conflict validation error:', error);
+      const errorMessage = handleFormError(error, 'conflict validation');
+      setErrors(prev => ({ ...prev, conflicts: errorMessage }));
+    } finally {
+      setValidationState(prev => ({ ...prev, isValidating: false }));
+      setLoadingStates(prev => ({ ...prev, validating: false }));
+    }
+  }, [formData, enableConflictValidation, validateConflicts, errors.conflicts]);
+
   // Validation
   const validate = useCallback((): boolean => {
     const newErrors: EnhancedShiftFormErrors = {};
@@ -283,8 +455,15 @@ export function useEnhancedShiftForm(
       newErrors.company_employee_id = 'Selecciona un empleado';
     }
 
+    // Validar fecha solo si no está vacía (evitar errores temporales durante el cambio)
     if (!formData.shift_date && !formData.bulk_mode) {
       newErrors.shift_date = 'Selecciona una fecha';
+    } else if (formData.shift_date) {
+      // Validar formato de fecha
+      const date = new Date(formData.shift_date);
+      if (isNaN(date.getTime())) {
+        newErrors.shift_date = 'Formato de fecha inválido';
+      }
     }
 
     if (!formData.start_time) {
@@ -365,9 +544,9 @@ export function useEnhancedShiftForm(
   const reset = useCallback(() => {
     setFormData({
       company_employee_id: initialData?.company_employee_id || 0,
-      shift_date: initialData?.shift_date || '',
-      start_time: initialData?.start_time || '',
-      end_time: initialData?.end_time || '',
+      shift_date: normalizeDateForForm(initialData?.shift_date) || '',
+      start_time: normalizeTimeForInput(initialData?.start_time, !!shiftId) || '',
+      end_time: normalizeTimeForInput(initialData?.end_time, !!shiftId) || '',
       notes: initialData?.notes || '',
       template_id: initialData?.template_id,
       use_template: initialData?.use_template || false,
@@ -385,6 +564,16 @@ export function useEnhancedShiftForm(
       suggestions: [],
       lastValidated: null,
     });
+    setLoadingStates(createInitialLoadingStates());
+    initialDataApplied.current = false;
+    
+    // Cancelar validaciones pendientes
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+    }
   }, [initialData]);
 
   return {
@@ -394,8 +583,9 @@ export function useEnhancedShiftForm(
     validationState,
     
     // Loading states
-    isLoading: createMutation.isPending || updateMutation.isPending || bulkCreateMutation.isPending,
-    isValidating: validationState.isValidating,
+    isLoading: createMutation.isPending || updateMutation.isPending || bulkCreateMutation.isPending || loadingStates.submitting,
+    isValidating: validationState.isValidating || loadingStates.validating,
+    loadingStates,
     
     // Form actions
     setFormData: setField,
@@ -408,6 +598,7 @@ export function useEnhancedShiftForm(
     // Enhanced actions
     applyTemplate,
     applySuggestion,
+    validateConflictsManually,
     
     // Data for enhanced features
     templates: templates || [],
@@ -418,5 +609,6 @@ export function useEnhancedShiftForm(
     isEditing: !!shiftId,
     isBulkMode: formData.bulk_mode,
     hasConflicts: validationState.hasConflicts,
+    isInitializing: loadingStates.initializing,
   };
 }

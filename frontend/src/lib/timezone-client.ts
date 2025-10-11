@@ -1,7 +1,9 @@
 /**
  * Utilidades para manejo de zona horaria del cliente
- * Solución flexible que funciona con cualquier zona horaria
+ * Usa date-fns-tz para conversiones robustas y precisas
  */
+
+import { zonedTimeToUtc, utcToZonedTime, format } from 'date-fns-tz';
 
 /**
  * Obtiene la zona horaria del cliente automáticamente
@@ -30,10 +32,10 @@ export function localTimeToUTC(
     const localDateTime = new Date(date);
     localDateTime.setHours(hours, minutes, 0, 0);
     
-    // Convertir a UTC
-    const utcTime = new Date(localDateTime.getTime() - localDateTime.getTimezoneOffset() * 60000);
+    // Usar date-fns-tz para conversión robusta LOCAL → UTC
+    const utcDate = zonedTimeToUtc(localDateTime, clientTimezone);
     
-    return utcTime.toISOString().substring(11, 16);
+    return format(utcDate, 'HH:mm');
   } catch (error) {
     console.error('Error converting local time to UTC:', error);
     return localTime; // Fallback
@@ -60,10 +62,10 @@ export function utcTimeToLocal(
     const utcDateTime = new Date(date);
     utcDateTime.setUTCHours(hours, minutes, 0, 0);
     
-    // Convertir a hora local
-    const localTime = new Date(utcDateTime.getTime() + utcDateTime.getTimezoneOffset() * 60000);
+    // Usar date-fns-tz para conversión robusta UTC → LOCAL
+    const localDate = utcToZonedTime(utcDateTime, clientTimezone);
     
-    return localTime.toTimeString().substring(0, 5);
+    return format(localDate, 'HH:mm');
   } catch (error) {
     console.error('Error converting UTC time to local:', error);
     return utcTime; // Fallback
@@ -78,23 +80,25 @@ export function utcTimeToLocal(
  */
 export function formatTimeSafe(time: string | Date, timezone?: string): string {
   try {
+    const clientTimezone = timezone || getClientTimezone();
+    
     if (typeof time === 'string') {
       if (time.match(/^\d{2}:\d{2}$/)) {
         // Es formato HH:mm, asumir que es UTC y convertir a local
-        return utcTimeToLocal(time, new Date(), timezone);
+        return utcTimeToLocal(time, new Date(), clientTimezone);
       } else if (time.includes('T') && time.includes('Z')) {
         // Es formato ISO, extraer solo la hora y convertir a local
         const date = new Date(time);
-        const utcTime = date.toISOString().substring(11, 16);
-        return utcTimeToLocal(utcTime, date, timezone);
+        const utcTime = format(date, 'HH:mm');
+        return utcTimeToLocal(utcTime, date, clientTimezone);
       } else {
         // Formato desconocido, devolver tal como está
         return time;
       }
     } else if (time instanceof Date) {
-      // Es Date, extraer la hora y convertir a local
-      const utcTime = time.toISOString().substring(11, 16);
-      return utcTimeToLocal(utcTime, time, timezone);
+      // Es Date, extraer la hora UTC y convertir a local
+      const utcTime = format(time, 'HH:mm');
+      return utcTimeToLocal(utcTime, time, clientTimezone);
     }
     return '--:--';
   } catch (error) {

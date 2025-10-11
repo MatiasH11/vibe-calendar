@@ -209,10 +209,24 @@ export class ShiftsApiService {
         body: JSON.stringify(data),
       });
       
-      return response.data!;
+      // Asegurar que response.data existe, si no devolver respuesta por defecto
+      if (!response.data) {
+        return {
+          has_conflicts: false,
+          conflicts: [],
+          total_conflicts: 0
+        };
+      }
+      
+      return response.data;
     } catch (error) {
       console.error('❌ ShiftsApiService.validateConflicts error:', error);
-      throw error;
+      // En caso de error, devolver respuesta por defecto en lugar de lanzar error
+      return {
+        has_conflicts: false,
+        conflicts: [],
+        total_conflicts: 0
+      };
     }
   }
 
@@ -242,11 +256,12 @@ export class ShiftsApiService {
   async getTimeSuggestions(request: SuggestionRequest): Promise<TimeSuggestion[]> {
     const queryParams = new URLSearchParams();
     
+    if (request.employee_id) queryParams.append('employee_id', request.employee_id.toString());
     if (request.date) queryParams.append('date', request.date);
     if (request.limit) queryParams.append('limit', request.limit.toString());
     
     const query = queryParams.toString();
-    const endpoint = `/api/v1/shifts/suggestions/${request.employee_id}${query ? `?${query}` : ''}`;
+    const endpoint = `/api/v1/shifts/suggestions${query ? `?${query}` : ''}`;
     
     try {
       const response = await apiClient.requestGeneric<{ success: boolean; data: TimeSuggestion[] }>(endpoint, {

@@ -1,13 +1,14 @@
+
 'use client';
 
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, TrendingUp, Calendar } from 'lucide-react';
+import { Clock, Calendar, TrendingUp } from 'lucide-react';
 import { useShiftTemplates } from '@/hooks/shifts/useShiftTemplates';
 import { ShiftTemplate } from '@/types/shifts/templates';
+import { formatTimeSafe } from '@/lib/timezone-client';
 
 interface ShiftTemplateSelectorProps {
   onTemplateSelect: (template: ShiftTemplate) => void;
@@ -47,6 +48,7 @@ export function ShiftTemplateSelector({
         console.warn('Failed to increment template usage:', error);
       }
       
+      // Aplicar automáticamente la plantilla
       onTemplateSelect(template);
       setShowTemplatePreview(true);
     }
@@ -86,46 +88,73 @@ export function ShiftTemplateSelector({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Template Selector */}
+      {/* Template Cards Selector */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700">
-            Usar Plantilla
-          </label>
-          {templates.length === 0 && (
-            <span className="text-xs text-gray-500">
-              No hay plantillas disponibles
-            </span>
-          )}
-        </div>
-        
-        <Select
-          value={selectedTemplateId?.toString() || undefined}
-          onValueChange={handleTemplateSelect}
-          disabled={disabled || templates.length === 0}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecciona una plantilla..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Sin plantilla</SelectItem>
+        {templates.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <span className="text-sm">No hay plantillas disponibles</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
             {templates.map((template) => (
-              <SelectItem key={template.id} value={template.id.toString()}>
-                <div className="flex items-center justify-between w-full">
-                  <span className="font-medium">{template.name}</span>
-                  <div className="flex items-center space-x-2 ml-2">
-                    <span className="text-xs text-gray-500">
-                      {formatTime(template.start_time)} - {formatTime(template.end_time)}
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
+              <Card
+                key={template.id}
+                className={`relative cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group ${
+                  selectedTemplateId === template.id
+                    ? 'ring-2 ring-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 shadow-md'
+                    : 'hover:border-blue-200 hover:bg-gray-50'
+                }`}
+                onClick={() => !disabled && handleTemplateSelect(template.id.toString())}
+              >
+                <CardContent className="p-3">
+                  {/* Primera fila: Nombre y contador de usos */}
+                  <div className="flex items-center justify-between mb-2">
+                    <CardTitle className="text-sm font-semibold text-gray-800 truncate flex-1 group-hover:text-blue-700 transition-colors">
+                      {template.name}
+                    </CardTitle>
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs px-2 py-1 h-5 flex-shrink-0 transition-colors ${
+                        selectedTemplateId === template.id 
+                          ? 'bg-blue-200 text-blue-800' 
+                          : 'bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-700'
+                      }`}
+                    >
                       {template.usage_count} usos
                     </Badge>
                   </div>
-                </div>
-              </SelectItem>
+                  
+                  {/* Segunda fila: Horario y duración */}
+                  <div className="flex items-center justify-between text-xs text-gray-600">
+                    <div className="flex items-center space-x-2 flex-1">
+                      <div className="flex items-center justify-center w-5 h-5 bg-gray-100 rounded-full group-hover:bg-blue-100 transition-colors">
+                        <Clock className="h-3 w-3 text-gray-500 group-hover:text-blue-600" />
+                      </div>
+                      <span className="truncate font-medium">
+                        {formatTimeSafe(template.start_time)} - {formatTimeSafe(template.end_time)}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 ml-3">
+                      <div className="flex items-center justify-center w-5 h-5 bg-gray-100 rounded-full group-hover:bg-blue-100 transition-colors">
+                        <Calendar className="h-3 w-3 text-gray-500 group-hover:text-blue-600" />
+                      </div>
+                      <span className="text-xs font-medium">
+                        {calculateDuration(template.start_time, template.end_time)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Checkmark de selección */}
+                  {selectedTemplateId === template.id && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+        )}
       </div>
 
       {/* Template Preview */}
@@ -156,7 +185,7 @@ export function ShiftTemplateSelector({
               <div className="flex items-center space-x-1">
                 <Clock className="h-3 w-3 text-blue-600" />
                 <span className="text-blue-800">
-                  {formatTime(selectedTemplate.start_time)} - {formatTime(selectedTemplate.end_time)}
+                  {formatTimeSafe(selectedTemplate.start_time)} - {formatTimeSafe(selectedTemplate.end_time)}
                 </span>
               </div>
               <div className="flex items-center space-x-1">
@@ -176,20 +205,7 @@ export function ShiftTemplateSelector({
         </Card>
       )}
 
-      {/* Use Template Button */}
-      {selectedTemplate && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onTemplateSelect(selectedTemplate)}
-          disabled={disabled}
-          className="w-full"
-        >
-          <Clock className="h-4 w-4 mr-2" />
-          Aplicar Plantilla
-        </Button>
-      )}
+
     </div>
   );
 }

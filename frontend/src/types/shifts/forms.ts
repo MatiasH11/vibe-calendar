@@ -53,6 +53,7 @@ export interface ShiftFormProps {
   employees: EmployeeWithShifts[];
   selectedDate?: string;
   selectedEmployee?: number;
+  shiftId?: number; // Para detectar si es edición
 }
 
 // Enhanced form props with template and suggestion support
@@ -64,6 +65,7 @@ export interface EnhancedShiftFormProps {
   employees: EmployeeWithShifts[];
   selectedDate?: string;
   selectedEmployee?: number;
+  shiftId?: number; // Para detectar si es edición
   
   // Enhanced functionality props
   enableTemplates?: boolean;

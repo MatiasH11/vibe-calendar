@@ -53,8 +53,17 @@ export class ApiClient {
         headers,
       });
 
-      const data = await response.json();
+      // Verificar si la respuesta es JSON antes de intentar parsearla
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        // Si no es JSON pero está OK, devolver un objeto vacío
+        return {};
+      }
 
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error?.message || `HTTP ${response.status}: ${response.statusText}`);
@@ -62,7 +71,10 @@ export class ApiClient {
 
       return data;
     } catch (error) {
-      console.error('❌ API Request failed:', error);
+      // Solo loggear errores que no sean 404 (para evitar spam en consola)
+      if (error instanceof Error && !error.message.includes('404')) {
+        console.error('❌ API Request failed:', error);
+      }
       throw error;
     }
   }

@@ -19,15 +19,10 @@ import {
   MoreVertical, 
   Edit, 
   Trash2, 
-  Clock, 
-  TrendingUp, 
-  Calendar,
-  SortAsc,
-  SortDesc
-} from 'lucide-react';
 import { useShiftTemplates } from '@/hooks/shifts/useShiftTemplates';
 import { ShiftTemplate, TemplateFilters } from '@/types/shifts/templates';
 import { ShiftTemplateForm } from './ShiftTemplateForm';
+import { formatTimeSafe } from '@/lib/timezone-client';
 
 interface ShiftTemplateManagerProps {
   onTemplateSelect?: (template: ShiftTemplate) => void;
