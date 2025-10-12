@@ -6,7 +6,7 @@ import { prisma } from './config/prisma_client';
 import { HTTP_CODES } from './constants/http_codes';
 import { error_handler } from './middlewares/error_handler';
 import { apiRateLimiter } from './middlewares/rate-limit.middleware';
-import { swaggerUiMiddleware } from './config/swagger';
+import { swaggerUIMiddleware, openAPIJSONHandler } from './config/openapi';
 import authRouter from './routes/auth.routes';
 import roleRouter from './routes/role.routes';
 import employeeRouter from './routes/employee.routes';
@@ -30,8 +30,9 @@ if (env.NODE_ENV === 'development') {
 // Rate limiting for API routes
 app.use('/api/', apiRateLimiter);
 
-// Swagger Docs
-app.use('/api/docs', ...swaggerUiMiddleware);
+// OpenAPI Documentation
+app.use('/api/docs', ...swaggerUIMiddleware);
+app.get('/api/docs/openapi.json', openAPIJSONHandler);
 
 // Health Check Endpoint
 app.get('/api/v1/health', async (req: Request, res: Response) => {

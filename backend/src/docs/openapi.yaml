@@ -1,0 +1,411 @@
+openapi: 3.1.0
+info:
+  title: Vibe Calendar API
+  version: 1.0.0
+  description: |
+    **Vibe Calendar** is a modern employee shift management system that enables companies to efficiently plan weekly shifts, manage employees and roles, and track work patterns with an intuitive interface.
+
+    ## Features
+    - 🔐 JWT-based authentication
+    - 👥 Multi-tenant company management
+    - 📅 Advanced shift scheduling with conflict detection
+    - 📊 Pattern learning for smart shift suggestions
+    - 📋 Reusable shift templates
+    - 🎯 Role-based access control
+
+    ## Base URL
+    All API endpoints are prefixed with `/api/v1`
+
+    ## Authentication
+    Most endpoints require authentication via JWT Bearer token. Obtain a token by logging in via `/auth/login`.
+
+    ## Rate Limiting
+    - **Auth endpoints**: 5 requests / 15 minutes
+    - **Bulk operations**: 10 requests / minute
+    - **General API**: 100 requests / minute
+
+    ## Response Format
+    All responses follow a standard format:
+    ```json
+    {
+      "success": true,
+      "data": { ... }
+    }
+    ```
+
+    Or in case of error:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "error_code": "ERROR_CODE",
+        "message": "Human-readable message"
+      }
+    }
+    ```
+
+  contact:
+    name: Vibe Calendar Support
+    email: support@vibecalendar.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001/api/v1
+    description: Local development server
+  - url: https://api.vibecalendar.com/api/v1
+    description: Production server
+
+tags:
+  - name: Auth
+    description: Authentication and registration endpoints
+  - name: Employees
+    description: Employee management operations
+  - name: Roles
+    description: Company role management
+  - name: Shifts
+    description: Shift scheduling and management
+  - name: Shift Templates
+    description: Reusable shift templates
+  - name: Statistics
+    description: Dashboard statistics and analytics
+  - name: Health
+    description: System health monitoring
+
+paths:
+  # Health Check
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      description: Check the health status of the API and its dependencies (database, memory, uptime)
+      operationId: getHealthCheck
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+        '500':
+          description: System is degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  # Auth Endpoints
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register new company and admin user
+      description: |
+        Creates a new company along with its first admin user in a single transaction.
+        This is the initial registration endpoint for new organizations.
+
+        **Rate Limit:** 5 requests / 15 minutes
+      operationId: registerCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              basic:
+                summary: Basic registration
+                value:
+                  company_name: "Acme Corp"
+                  first_name: "John"
+                  last_name: "Doe"
+                  email: "john@acme.com"
+                  password: "SecurePass123!"
+      responses:
+        '201':
+          description: Company and admin user created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  error_code: "EMAIL_ALREADY_EXISTS"
+                  message: "A user with this email already exists"
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with credentials
+      description: |
+        Authenticate a user and receive a JWT token for subsequent requests.
+        The token should be included in the `Authorization` header as `Bearer <token>`.
+
+        **Rate Limit:** 5 requests / 15 minutes
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              admin:
+                summary: Admin login
+                value:
+                  email: "admin@company.com"
+                  password: "SecurePass123!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  error_code: "INVALID_CREDENTIALS"
+                  message: "Invalid email or password"
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from the `/auth/login` endpoint.
+
+        Include in requests as:
+        ```
+        Authorization: Bearer <your-jwt-token>
+        ```
+
+  schemas:
+    # Standard Response Wrapper
+    SuccessResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          description: Response payload (structure varies by endpoint)
+
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required: [error_code, message]
+          properties:
+            error_code:
+              type: string
+              description: Machine-readable error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Invalid request data"
+            details:
+              type: object
+              description: Additional error details (optional)
+
+    # Health Check
+    HealthCheckResponse:
+      type: object
+      required: [status, timestamp, services]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+          description: Overall system status
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+        uptime:
+          type: integer
+          description: Server uptime in seconds
+        services:
+          type: object
+          required: [api, database]
+          properties:
+            api:
+              type: string
+              enum: [up, down]
+            database:
+              type: string
+              enum: [up, down]
+        memory:
+          type: object
+          properties:
+            used:
+              type: integer
+              description: Heap memory used in MB
+            total:
+              type: integer
+              description: Total heap memory in MB
+            unit:
+              type: string
+              example: "MB"
+
+    # Auth Schemas
+    RegisterRequest:
+      type: object
+      required: [company_name, first_name, last_name, email, password]
+      properties:
+        company_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Name of the company
+          example: "Acme Corp"
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Admin user's first name
+          example: "John"
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Admin user's last name
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          description: Admin user's email (will be used for login)
+          example: "john@acme.com"
+        password:
+          type: string
+          minLength: 8
+          description: Strong password (min 8 characters)
+          example: "SecurePass123!"
+
+    RegisterResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [company_id, user_id, employee_id, role_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: ID of the created company
+                user_id:
+                  type: integer
+                  description: ID of the created admin user
+                employee_id:
+                  type: integer
+                  description: ID of the company-employee relationship
+                role_id:
+                  type: integer
+                  description: ID of the default admin role
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email
+          example: "admin@company.com"
+        password:
+          type: string
+          description: User's password
+          example: "SecurePass123!"
+
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  description: JWT token (valid for 8 hours)
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+  responses:
+    RateLimitExceeded:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              error_code: "TOO_MANY_REQUESTS"
+              message: "Too many requests. Please slow down."
+
+    Unauthorized:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              error_code: "UNAUTHORIZED"
+              message: "Authentication required"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              error_code: "FORBIDDEN"
+              message: "You don't have permission to perform this action"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              error_code: "NOT_FOUND"
+              message: "Resource not found"
+
+security:
+  - bearerAuth: []
