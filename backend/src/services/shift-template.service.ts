@@ -1,20 +1,11 @@
 import { prisma } from '../config/prisma_client';
 import { backendTemplateCache } from '../cache/template-cache';
-import { 
-  CreateShiftTemplateBody, 
-  UpdateShiftTemplateBody, 
-  GetShiftTemplatesQuery 
+import {
+  CreateShiftTemplateBody,
+  UpdateShiftTemplateBody,
+  GetShiftTemplatesQuery
 } from '../validations/shift-template.validation';
-
-// Función para convertir tiempo UTC a DateTime (para almacenar en BD)
-const utcTimeToDateTime = (utcTime: string): Date => {
-  return new Date(`1970-01-01T${utcTime}:00.000Z`);
-};
-
-// Función para convertir DateTime a tiempo UTC (para devolver al frontend)
-const dateTimeToUtcTime = (dateTime: Date): string => {
-  return dateTime.toISOString().substring(11, 16);
-};
+import { utcTimeToDateTime, dateTimeToUtcTime } from '../utils/time-conversion.utils';
 
 export const shift_template_service = {
   async create(data: CreateShiftTemplateBody, company_id: number, created_by: number) {

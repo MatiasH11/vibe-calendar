@@ -5,6 +5,7 @@ import { env } from './config/environment';
 import { prisma } from './config/prisma_client';
 import { HTTP_CODES } from './constants/http_codes';
 import { error_handler } from './middlewares/error_handler';
+import { apiRateLimiter } from './middlewares/rate-limit.middleware';
 import { swaggerUiMiddleware } from './config/swagger';
 import authRouter from './routes/auth.routes';
 import roleRouter from './routes/role.routes';
@@ -25,6 +26,9 @@ app.use(express.json());
 if (env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// Rate limiting for API routes
+app.use('/api/', apiRateLimiter);
 
 // Swagger Docs
 app.use('/api/docs', ...swaggerUiMiddleware);

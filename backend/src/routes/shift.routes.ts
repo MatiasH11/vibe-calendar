@@ -4,6 +4,7 @@ import { adminMiddleware } from '../middlewares/admin.middleware';
 import { validate_body, validate_query } from '../middlewares/validation_middleware';
 import { create_shift_schema, get_shifts_schema, update_shift_schema, duplicate_shift_schema, bulk_create_shifts_schema, validate_conflicts_schema, get_employee_patterns_schema, get_suggestions_schema } from '../validations/shift.validation';
 import { create_shift_handler, delete_shift_handler, get_shifts_handler, update_shift_handler, duplicate_shifts_handler, bulk_create_shifts_handler, validate_conflicts_handler, get_employee_patterns_handler, get_suggestions_handler } from '../controllers/shift.controller';
+import { strictRateLimiter } from '../middlewares/rate-limit.middleware';
 
 const router = Router();
 
@@ -140,7 +141,7 @@ router.delete('/:id', authMiddleware, adminMiddleware, delete_shift_handler);
  *       409:
  *         description: Conflicts detected
  */
-router.post('/duplicate', authMiddleware, adminMiddleware, validate_body(duplicate_shift_schema), duplicate_shifts_handler);
+router.post('/duplicate', authMiddleware, adminMiddleware, strictRateLimiter, validate_body(duplicate_shift_schema), duplicate_shifts_handler);
 
 /**
  * @openapi
@@ -169,7 +170,7 @@ router.post('/duplicate', authMiddleware, adminMiddleware, validate_body(duplica
  *       409:
  *         description: Conflicts detected
  */
-router.post('/bulk-create', authMiddleware, adminMiddleware, validate_body(bulk_create_shifts_schema), bulk_create_shifts_handler);
+router.post('/bulk-create', authMiddleware, adminMiddleware, strictRateLimiter, validate_body(bulk_create_shifts_schema), bulk_create_shifts_handler);
 
 /**
  * @openapi

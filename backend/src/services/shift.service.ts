@@ -1,35 +1,24 @@
 import { prisma } from '../config/prisma_client';
 import { create_shift_body, get_shifts_query, update_shift_body, duplicate_shift_body, bulk_create_shifts_body, validate_conflicts_body, get_employee_patterns_query, get_suggestions_query } from '../validations/shift.validation';
+import {
+  utcTimeToDateTime,
+  dateTimeToUtcTime,
+  validateTimeFormat,
+  timeRangesOverlap
+} from '../utils/time-conversion.utils';
 
-// Función para convertir tiempo UTC a DateTime (para almacenar en BD)
-const utcTimeToDateTime = (utcTime: string): Date => {
-  // Crear un DateTime con fecha fija (1970-01-01) y la hora UTC
-  return new Date(`1970-01-01T${utcTime}:00.000Z`);
-};
-
-// Función para convertir DateTime a tiempo UTC (para devolver al frontend)
-const dateTimeToUtcTime = (dateTime: Date): string => {
-  return dateTime.toISOString().substring(11, 16);
-};
-
-// Función para convertir tiempo UTC a local (para mostrar al usuario)
+// Helper functions
 const utcTimeToLocal = (dateTime: Date, shiftDate: Date): string => {
   return dateTime.toISOString().substring(11, 16);
 };
 
-// Función para convertir tiempo local a UTC (para almacenar en BD)
 const localTimeToUTC = (localTime: string, shiftDate: Date): Date => {
   return new Date(`1970-01-01T${localTime}:00.000Z`);
 };
 
-const validateTimeFormat = (time: string): boolean => {
-  return /^\d{2}:\d{2}$/.test(time);
-};
-
 const timeLess = (a: string, b: string) => a < b;
 const overlap = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
-  // medio-abiertos [start, end)
-  return aStart < bEnd && bStart < aEnd;
+  return timeRangesOverlap(aStart, aEnd, bStart, bEnd);
 };
 
 export const shift_service = {

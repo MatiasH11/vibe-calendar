@@ -317,13 +317,13 @@ export const employee_service = {
     return { success: true };
   },
 
-  // NUEVO: Método específico para vista de turnos (mejorado)
+  // NUEVO: Método específico para vista de turnos (optimizado - single query)
   async findByCompanyForShifts(company_id: number, options: { start_date?: string; end_date?: string; week_start?: string; week_end?: string }) {
     // Mantener compatibilidad con parámetros antiguos
     const start_date = options.start_date || options.week_start;
     const end_date = options.end_date || options.week_end;
-    
-    // Obtener todos los empleados activos de la empresa
+
+    // Single query optimizado con include para obtener empleados + shifts
     const employees = await prisma.company_employee.findMany({
       where: {
         company_id,
@@ -353,6 +353,20 @@ export const employee_service = {
             updated_at: true,
           },
         },
+        // Include shifts directamente si hay rango
+        shifts: start_date && end_date ? {
+          where: {
+            shift_date: {
+              gte: new Date(start_date),
+              lte: new Date(end_date),
+            },
+            deleted_at: null,
+          },
+          orderBy: [
+            { shift_date: 'asc' },
+            { start_time: 'asc' },
+          ],
+        } : false,
       },
       orderBy: [
         { user: { first_name: 'asc' } },
@@ -377,60 +391,39 @@ export const employee_service = {
       };
     }
 
-    // Obtener turnos del rango para todos los empleados
-    const shifts = await prisma.shift.findMany({
-      where: {
-        company_employee: {
-          company_id,
-          is_active: true,
-          deleted_at: null,
-        },
-        shift_date: {
-          gte: new Date(start_date),
-          lte: new Date(end_date),
-        },
-        deleted_at: null,
-      },
-      include: {
-        company_employee: {
-          select: {
-            id: true,
-            user: {
-              select: {
-                first_name: true,
-                last_name: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: [
-        { shift_date: 'asc' },
-        { start_time: 'asc' },
-      ],
-    });
-
     // Crear array de días del rango
     const rangeDays = [];
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
-    
+
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       rangeDays.push(d.toISOString().split('T')[0]);
     }
 
-    // Procesar empleados con sus turnos del rango
+    // Crear un Map para lookups rápidos O(1) en lugar de filter O(n)
+    const shiftsMap = new Map<string, any[]>();
+    let totalShifts = 0;
+
+    // Procesar empleados con sus turnos del rango (optimizado)
     const employeesWithShifts = employees.map(emp => {
-      const employeeShifts = shifts.filter(shift => shift.company_employee_id === emp.id);
-      
+      // Agrupar shifts por fecha usando Map
+      const shiftsByDateMap = new Map<string, any[]>();
+
+      emp.shifts.forEach(shift => {
+        totalShifts++;
+        const shiftDate = shift.shift_date instanceof Date
+          ? shift.shift_date.toISOString().split('T')[0]
+          : shift.shift_date;
+
+        if (!shiftsByDateMap.has(shiftDate)) {
+          shiftsByDateMap.set(shiftDate, []);
+        }
+        shiftsByDateMap.get(shiftDate)!.push(shift);
+      });
+
       const shiftsByDay = rangeDays.map(date => ({
         date,
-        shifts: employeeShifts.filter(shift => {
-          const shiftDate = shift.shift_date instanceof Date 
-            ? shift.shift_date.toISOString().split('T')[0]
-            : shift.shift_date;
-          return shiftDate === date;
-        }),
+        shifts: shiftsByDateMap.get(date) || [],
       }));
 
       return {
@@ -440,10 +433,9 @@ export const employee_service = {
     });
 
     // Calcular estadísticas
-    const employeesWithShiftsCount = employeesWithShifts.filter(emp => 
+    const employeesWithShiftsCount = employeesWithShifts.filter(emp =>
       emp.shifts.some(day => day.shifts.length > 0)
     ).length;
-    const totalShifts = shifts.length;
 
     return {
       employees: employeesWithShifts,
