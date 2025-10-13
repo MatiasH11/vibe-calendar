@@ -392,7 +392,7 @@ export const employee_service = {
     }
 
     // Crear array de días del rango
-    const rangeDays = [];
+    const rangeDays: string[] = [];
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
 

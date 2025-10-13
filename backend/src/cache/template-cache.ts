@@ -29,7 +29,7 @@ class BackendTemplateCache {
   /**
    * Get templates from cache
    */
-  getTemplates(companyId: number, filters?: any): any[] | null {
+  getTemplates(companyId: number, filters?: any): any | null {
     const key = this.generateTemplateKey(companyId, filters);
     const entry = this.templateCache.get(key);
 
@@ -52,9 +52,9 @@ class BackendTemplateCache {
   /**
    * Set templates in cache
    */
-  setTemplates(companyId: number, templates: any[], filters?: any): void {
+  setTemplates(companyId: number, templates: any, filters?: any): void {
     const key = this.generateTemplateKey(companyId, filters);
-    
+
     this.templateCache.set(key, {
       data: templates,
       timestamp: Date.now(),

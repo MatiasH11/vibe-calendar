@@ -1,12 +1,14 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import { v4 as uuidv4 } from 'uuid';
 import { env } from './config/environment';
 import { prisma } from './config/prisma_client';
 import { HTTP_CODES } from './constants/http_codes';
 import { error_handler } from './middlewares/error_handler';
 import { apiRateLimiter } from './middlewares/rate-limit.middleware';
 import { swaggerUIMiddleware, openAPIJSONHandler } from './config/openapi';
+import { logger, morganStream } from './utils/logger';
 import authRouter from './routes/auth.routes';
 import roleRouter from './routes/role.routes';
 import employeeRouter from './routes/employee.routes';
@@ -17,15 +19,32 @@ import statisticsRouter from './routes/statistics.routes';
 
 const app: Express = express();
 
+// Request ID middleware (for tracing)
+app.use((req, res, next) => {
+  (req as any).id = (req.headers['x-request-id'] as string) || uuidv4();
+  res.setHeader('X-Request-ID', (req as any).id);
+  next();
+});
+
 // Middlewares
 app.use(cors({
   origin: '*', // En producción, especificar dominios permitidos
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 app.use(express.json());
+
+// HTTP request logging with Winston
 if (env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
+  app.use(morgan('dev', { stream: morganStream }));
+} else {
+  app.use(morgan('combined', { stream: morganStream }));
 }
+
+// Log application startup
+logger.info('Vibe Calendar API starting', {
+  nodeEnv: env.NODE_ENV,
+  port: env.PORT,
+});
 
 // Rate limiting for API routes
 app.use('/api/', apiRateLimiter);

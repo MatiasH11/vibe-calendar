@@ -6,6 +6,19 @@ import {
   validateTimeFormat,
   timeRangesOverlap
 } from '../utils/time-conversion.utils';
+import {
+  UnauthorizedCompanyAccessError,
+  UnauthorizedEmployeeAccessError,
+  InvalidTimeFormatError,
+  OvernightNotAllowedError,
+  ShiftOverlapError,
+  UnauthorizedShiftAccessError,
+  DuplicationConflictsDetectedError,
+  BulkCreationConflictsDetectedError,
+  InvalidStartTimeFormatError,
+  InvalidEndTimeFormatError,
+  TemplateNotFoundError,
+} from '../errors';
 
 // Helper functions
 const utcTimeToLocal = (dateTime: Date, shiftDate: Date): string => {
@@ -28,15 +41,15 @@ export const shift_service = {
       where: { id: data.company_employee_id, company_id: admin_company_id, deleted_at: null },
     });
     if (!employee) {
-      throw new Error('UNAUTHORIZED_COMPANY_ACCESS');
+      throw new UnauthorizedCompanyAccessError('Employee', data.company_employee_id, admin_company_id);
     }
 
     // 2) Validaciones de formato y hora (no overnight)
     if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
-      throw new Error('INVALID_TIME_FORMAT');
+      throw new InvalidTimeFormatError('start_time or end_time', `${data.start_time} - ${data.end_time}`);
     }
     if (!timeLess(data.start_time, data.end_time)) {
-      throw new Error('OVERNIGHT_NOT_ALLOWED');
+      throw new OvernightNotAllowedError(data.start_time, data.end_time);
     }
 
     return prisma.$transaction(async (tx) => {
@@ -51,15 +64,15 @@ export const shift_service = {
 
       // El frontend ya envía tiempos UTC, solo validar formato
       if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
-        throw new Error('INVALID_TIME_FORMAT');
+        throw new InvalidTimeFormatError('start_time or end_time', `${data.start_time} - ${data.end_time}`);
       }
-      
+
       // Validar solapamiento con tiempos UTC
       for (const s of existing) {
         const sStart = dateTimeToUtcTime(s.start_time as Date);
         const sEnd = dateTimeToUtcTime(s.end_time as Date);
         if (overlap(data.start_time, data.end_time, sStart, sEnd)) {
-          throw new Error('SHIFT_OVERLAP');
+          throw new ShiftOverlapError(data.company_employee_id, data.shift_date, s);
         }
       }
 
