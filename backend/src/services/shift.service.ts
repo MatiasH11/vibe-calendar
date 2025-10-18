@@ -3,22 +3,27 @@ import { create_shift_body, get_shifts_query, update_shift_body, duplicate_shift
 // NEW: Pure UTC time utilities (PLAN.md 4.2)
 // Backend ONLY handles UTC. No timezone conversions. Frontend is responsible for timezone handling.
 import {
-<<<<<<< HEAD
   toUTCDateTime,
   fromUTCDateTime,
   validateUTCTimeFormat,
   utcTimesOverlap,
   isValidTimeRange,
   calculateDurationMinutes,
-  // Deprecated functions still in use - to be refactored
-  dateTimeToUtcTime,
-  utcTimeToDateTime,
-  validateTimeFormat,
-  timeLess,
-  overlap,
 } from '../utils/time.utils';
 // NEW: Company settings service for configurable business rules (PLAN.md 5.2)
 import { company_settings_service } from './company-settings.service';
+// Error classes
+import {
+  UnauthorizedCompanyAccessError,
+  InvalidTimeFormatError,
+  OvernightNotAllowedError,
+  ShiftOverlapError,
+  UnauthorizedShiftAccessError,
+  DuplicationConflictsDetectedError,
+  BulkCreationConflictsDetectedError,
+  InvalidStartTimeFormatError,
+  InvalidEndTimeFormatError,
+} from '../errors';
 
 export const shift_service = {
   async create(data: create_shift_body, admin_company_id: number) {
@@ -33,10 +38,10 @@ export const shift_service = {
     // 2) Validate UTC time format and no overnight shifts (PLAN.md 4.2)
     // All times are expected in UTC format (HH:mm) from frontend
     if (!validateUTCTimeFormat(data.start_time) || !validateUTCTimeFormat(data.end_time)) {
-      throw new Error('INVALID_TIME_FORMAT');
+      throw new InvalidTimeFormatError('start_time or end_time', `${data.start_time} - ${data.end_time}`);
     }
     if (!isValidTimeRange(data.start_time, data.end_time)) {
-      throw new Error('OVERNIGHT_NOT_ALLOWED');
+      throw new OvernightNotAllowedError(data.start_time, data.end_time);
     }
 
     return prisma.$transaction(async (tx) => {
@@ -49,27 +54,13 @@ export const shift_service = {
         },
       });
 
-<<<<<<< HEAD
       // Check for overlaps with existing shifts
       // All times are in UTC format (HH:mm) - no conversion needed
       for (const s of existing) {
         const sStart = fromUTCDateTime(s.start_time as Date);
         const sEnd = fromUTCDateTime(s.end_time as Date);
         if (utcTimesOverlap(data.start_time, data.end_time, sStart, sEnd)) {
-          throw new Error('SHIFT_OVERLAP');
-=======
-      // El frontend ya envía tiempos UTC, solo validar formato
-      if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
-        throw new InvalidTimeFormatError('start_time or end_time', `${data.start_time} - ${data.end_time}`);
-      }
-
-      // Validar solapamiento con tiempos UTC
-      for (const s of existing) {
-        const sStart = dateTimeToUtcTime(s.start_time as Date);
-        const sEnd = dateTimeToUtcTime(s.end_time as Date);
-        if (overlap(data.start_time, data.end_time, sStart, sEnd)) {
           throw new ShiftOverlapError(data.company_employee_id, data.shift_date, s);
->>>>>>> a9681daf01dd996ab9cf9156fc3b346286e44884
         }
       }
 
@@ -130,45 +121,46 @@ export const shift_service = {
   },
 
   async update(shift_id: number, data: update_shift_body, admin_company_id: number) {
-    // 1) Verificar pertenencia
+    // 1) Verify shift belongs to admin's company
     const target = await prisma.shift.findUnique({
       where: { id: shift_id },
       include: { company_employee: true },
     });
     if (!target || target.company_employee.company_id !== admin_company_id) {
-      throw new Error('UNAUTHORIZED_COMPANY_ACCESS');
+      throw new UnauthorizedCompanyAccessError('Shift', shift_id, admin_company_id);
     }
 
     const nextDate = data.shift_date ? new Date(data.shift_date) : target.shift_date;
     
-    // Convertir tiempos locales a UTC si se proporcionan
+    // Get times: use provided or keep existing (in UTC format)
     let nextStart: string;
     let nextEnd: string;
     
     if (data.start_time) {
-      if (!validateTimeFormat(data.start_time)) {
-        throw new Error('INVALID_START_TIME_FORMAT');
+      if (!validateUTCTimeFormat(data.start_time)) {
+        throw new InvalidStartTimeFormatError(data.start_time);
       }
       nextStart = data.start_time;
     } else {
-      nextStart = utcTimeToLocal(target.start_time as Date, target.shift_date);
+      nextStart = fromUTCDateTime(target.start_time as Date);
     }
     
     if (data.end_time) {
-      if (!validateTimeFormat(data.end_time)) {
-        throw new Error('INVALID_END_TIME_FORMAT');
+      if (!validateUTCTimeFormat(data.end_time)) {
+        throw new InvalidEndTimeFormatError(data.end_time);
       }
       nextEnd = data.end_time;
     } else {
-      nextEnd = utcTimeToLocal(target.end_time as Date, target.shift_date);
+      nextEnd = fromUTCDateTime(target.end_time as Date);
     }
     
-    if (!timeLess(nextStart, nextEnd)) {
-      throw new Error('OVERNIGHT_NOT_ALLOWED');
+    // Validate no overnight shifts (PLAN.md 4.2)
+    if (!isValidTimeRange(nextStart, nextEnd)) {
+      throw new OvernightNotAllowedError(nextStart, nextEnd);
     }
 
     return prisma.$transaction(async (tx) => {
-      // Validar solapamiento si cambian fecha u horas
+      // Validate no overlap if date or times change
       if (data.shift_date || data.start_time || data.end_time) {
         const existing = await tx.shift.findMany({
           where: {
@@ -179,17 +171,17 @@ export const shift_service = {
           },
         });
         for (const s of existing) {
-          const sStart = utcTimeToLocal(s.start_time as Date, s.shift_date);
-          const sEnd = utcTimeToLocal(s.end_time as Date, s.shift_date);
-          if (overlap(nextStart, nextEnd, sStart, sEnd)) {
-            throw new Error('SHIFT_OVERLAP');
+          const sStart = fromUTCDateTime(s.start_time as Date);
+          const sEnd = fromUTCDateTime(s.end_time as Date);
+          if (utcTimesOverlap(nextStart, nextEnd, sStart, sEnd)) {
+            throw new ShiftOverlapError(target.company_employee_id, nextDate.toISOString().split('T')[0], s);
           }
         }
       }
 
-      // Convertir tiempos locales a UTC para almacenar
-      const utcStart = data.start_time ? localTimeToUTC(data.start_time, nextDate) : undefined;
-      const utcEnd = data.end_time ? localTimeToUTC(data.end_time, nextDate) : undefined;
+      // Convert UTC times to DateTime for storage
+      const utcStart = data.start_time ? toUTCDateTime(data.start_time) : undefined;
+      const utcEnd = data.end_time ? toUTCDateTime(data.end_time) : undefined;
       
       const updated = await tx.shift.update({
         where: { id: shift_id },
@@ -200,12 +192,22 @@ export const shift_service = {
           notes: data.notes ?? undefined,
         },
       });
+
+      // Update employee pattern if times changed
+      if (data.start_time || data.end_time) {
+        await this.updateEmployeePattern(
+          target.company_employee_id,
+          fromUTCDateTime(updated.start_time as Date),
+          fromUTCDateTime(updated.end_time as Date),
+          tx
+        );
+      }
       
-      // Convertir tiempos UTC a local para devolver
+      // Return with UTC times as strings
       return {
         ...updated,
-        start_time: utcTimeToLocal(updated.start_time as Date, updated.shift_date),
-        end_time: utcTimeToLocal(updated.end_time as Date, updated.shift_date),
+        start_time: fromUTCDateTime(updated.start_time as Date),
+        end_time: fromUTCDateTime(updated.end_time as Date),
       };
     });
   },
@@ -216,7 +218,7 @@ export const shift_service = {
       include: { company_employee: true },
     });
     if (!target || target.company_employee.company_id !== admin_company_id) {
-      throw new Error('UNAUTHORIZED_COMPANY_ACCESS');
+      throw new UnauthorizedCompanyAccessError('Shift', shift_id, admin_company_id);
     }
     await prisma.shift.update({ where: { id: shift_id }, data: { deleted_at: new Date() } });
   },
@@ -235,7 +237,7 @@ export const shift_service = {
       });
 
       if (sourceShifts.length !== data.source_shift_ids.length) {
-        throw new Error('UNAUTHORIZED_SHIFT_ACCESS');
+        throw new UnauthorizedShiftAccessError(data.source_shift_ids[0], admin_company_id);
       }
 
       // 2) Validate target employees belong to company (if specified)
@@ -250,7 +252,7 @@ export const shift_service = {
         });
 
         if (targetEmployees.length !== data.target_employee_ids.length) {
-          throw new Error('UNAUTHORIZED_EMPLOYEE_ACCESS');
+          throw new UnauthorizedCompanyAccessError('Employees', data.target_employee_ids[0], admin_company_id);
         }
       }
 
@@ -299,7 +301,7 @@ export const shift_service = {
       if (data.conflict_resolution === 'fail') {
         const conflicts = await this.checkConflicts(duplicationsToCreate, tx);
         if (conflicts.length > 0) {
-          throw new Error('DUPLICATION_CONFLICTS_DETECTED');
+          throw new DuplicationConflictsDetectedError(conflicts);
         }
       }
 
@@ -330,12 +332,12 @@ export const shift_service = {
             });
 
             if (existingShift) {
-              const startTime = dateTimeToUtcTime(duplication.start_time);
-              const endTime = dateTimeToUtcTime(duplication.end_time);
-              const existingStart = dateTimeToUtcTime(existingShift.start_time as Date);
-              const existingEnd = dateTimeToUtcTime(existingShift.end_time as Date);
+              const startTime = fromUTCDateTime(duplication.start_time);
+              const endTime = fromUTCDateTime(duplication.end_time);
+              const existingStart = fromUTCDateTime(existingShift.start_time as Date);
+              const existingEnd = fromUTCDateTime(existingShift.end_time as Date);
 
-              if (overlap(startTime, endTime, existingStart, existingEnd)) {
+              if (utcTimesOverlap(startTime, endTime, existingStart, existingEnd)) {
                 skippedDuplications.push({
                   ...duplication,
                   reason: 'CONFLICT_DETECTED',
@@ -352,8 +354,8 @@ export const shift_service = {
 
           successfulDuplications.push({
             ...created,
-            start_time: dateTimeToUtcTime(created.start_time as Date),
-            end_time: dateTimeToUtcTime(created.end_time as Date),
+            start_time: fromUTCDateTime(created.start_time as Date),
+            end_time: fromUTCDateTime(created.end_time as Date),
           });
 
         } catch (error: any) {
@@ -409,8 +411,8 @@ export const shift_service = {
         },
       });
 
-      const shiftStart = dateTimeToUtcTime(shift.start_time);
-      const shiftEnd = dateTimeToUtcTime(shift.end_time);
+      const shiftStart = fromUTCDateTime(shift.start_time);
+      const shiftEnd = fromUTCDateTime(shift.end_time);
 
       const conflictAnalysis = this.analyzeConflicts(
         shiftStart,
@@ -451,8 +453,8 @@ export const shift_service = {
     const resolutionSuggestions: string[] = [];
 
     for (const existing of existingShifts) {
-      const existingStart = dateTimeToUtcTime(existing.start_time as Date);
-      const existingEnd = dateTimeToUtcTime(existing.end_time as Date);
+      const existingStart = fromUTCDateTime(existing.start_time as Date);
+      const existingEnd = fromUTCDateTime(existing.end_time as Date);
 
       // Check for exact duplicate
       if (newStart === existingStart && newEnd === existingEnd) {
@@ -469,7 +471,7 @@ export const shift_service = {
       }
 
       // Check for overlap
-      if (overlap(newStart, newEnd, existingStart, existingEnd)) {
+      if (utcTimesOverlap(newStart, newEnd, existingStart, existingEnd)) {
         conflictingShifts.push({
           ...existing,
           start_time: existingStart,
@@ -616,8 +618,8 @@ export const shift_service = {
 
     const newShiftDuration = this.calculateDurationHours(startTime, endTime);
     const existingDailyHours = existingShifts.reduce((total, shift) => {
-      const start = dateTimeToUtcTime(shift.start_time as Date);
-      const end = dateTimeToUtcTime(shift.end_time as Date);
+      const start = fromUTCDateTime(shift.start_time as Date);
+      const end = fromUTCDateTime(shift.end_time as Date);
       return total + this.calculateDurationHours(start, end);
     }, 0);
 
@@ -651,8 +653,8 @@ export const shift_service = {
     });
 
     for (const adjacentShift of adjacentShifts) {
-      const adjStart = dateTimeToUtcTime(adjacentShift.start_time as Date);
-      const adjEnd = dateTimeToUtcTime(adjacentShift.end_time as Date);
+      const adjStart = fromUTCDateTime(adjacentShift.start_time as Date);
+      const adjEnd = fromUTCDateTime(adjacentShift.end_time as Date);
 
       let breakHours = 0;
       if (adjacentShift.shift_date < shiftDate) {
@@ -690,8 +692,8 @@ export const shift_service = {
     });
 
     const weeklyHours = weeklyShifts.reduce((total, shift) => {
-      const start = dateTimeToUtcTime(shift.start_time as Date);
-      const end = dateTimeToUtcTime(shift.end_time as Date);
+      const start = fromUTCDateTime(shift.start_time as Date);
+      const end = fromUTCDateTime(shift.end_time as Date);
       return total + this.calculateDurationHours(start, end);
     }, 0) + newShiftDuration;
 
@@ -739,7 +741,7 @@ export const shift_service = {
       });
 
       if (employees.length !== data.employee_ids.length) {
-        throw new Error('UNAUTHORIZED_EMPLOYEE_ACCESS');
+        throw new UnauthorizedCompanyAccessError('Employees', data.employee_ids[0], admin_company_id);
       }
 
       // 2) Validate template if provided
@@ -754,12 +756,12 @@ export const shift_service = {
         });
 
         if (!template) {
-          throw new Error('TEMPLATE_NOT_FOUND');
+          throw new InvalidTimeFormatError('template_id', `Template ${data.template_id} not found`);
         }
 
         templateData = {
-          start_time: dateTimeToUtcTime(template.start_time as Date),
-          end_time: dateTimeToUtcTime(template.end_time as Date),
+          start_time: fromUTCDateTime(template.start_time as Date),
+          end_time: fromUTCDateTime(template.end_time as Date),
         };
 
         // Update template usage count
@@ -774,11 +776,11 @@ export const shift_service = {
       const endTime = templateData?.end_time || data.end_time;
 
       // 4) Validate time format and range
-      if (!validateTimeFormat(startTime) || !validateTimeFormat(endTime)) {
-        throw new Error('INVALID_TIME_FORMAT');
+      if (!validateUTCTimeFormat(startTime) || !validateUTCTimeFormat(endTime)) {
+        throw new InvalidTimeFormatError('start_time or end_time', `${startTime} - ${endTime}`);
       }
-      if (!timeLess(startTime, endTime)) {
-        throw new Error('OVERNIGHT_NOT_ALLOWED');
+      if (!isValidTimeRange(startTime, endTime)) {
+        throw new OvernightNotAllowedError(startTime, endTime);
       }
 
       // 5) Generate bulk creation plan
@@ -795,8 +797,8 @@ export const shift_service = {
           shiftsToCreate.push({
             company_employee_id: employeeId,
             shift_date: new Date(dateStr),
-            start_time: utcTimeToDateTime(startTime),
-            end_time: utcTimeToDateTime(endTime),
+            start_time: toUTCDateTime(startTime),
+            end_time: toUTCDateTime(endTime),
             notes: data.notes,
           });
         }
@@ -808,8 +810,8 @@ export const shift_service = {
         return {
           preview: shiftsToCreate.map(shift => ({
             ...shift,
-            start_time: dateTimeToUtcTime(shift.start_time),
-            end_time: dateTimeToUtcTime(shift.end_time),
+            start_time: fromUTCDateTime(shift.start_time),
+            end_time: fromUTCDateTime(shift.end_time),
             shift_date: shift.shift_date.toISOString().split('T')[0],
           })),
           conflicts,
@@ -822,7 +824,7 @@ export const shift_service = {
       if (data.conflict_resolution === 'fail') {
         const conflicts = await this.checkConflicts(shiftsToCreate, tx);
         if (conflicts.length > 0) {
-          throw new Error('BULK_CREATION_CONFLICTS_DETECTED');
+          throw new BulkCreationConflictsDetectedError(conflicts);
         }
       }
 
@@ -852,13 +854,13 @@ export const shift_service = {
               },
             });
 
-            const shiftStart = dateTimeToUtcTime(shiftData.start_time);
-            const shiftEnd = dateTimeToUtcTime(shiftData.end_time);
+            const shiftStart = fromUTCDateTime(shiftData.start_time);
+            const shiftEnd = fromUTCDateTime(shiftData.end_time);
 
             const hasConflict = existingShifts.some((existing: any) => {
-              const existingStart = dateTimeToUtcTime(existing.start_time as Date);
-              const existingEnd = dateTimeToUtcTime(existing.end_time as Date);
-              return overlap(shiftStart, shiftEnd, existingStart, existingEnd);
+              const existingStart = fromUTCDateTime(existing.start_time as Date);
+              const existingEnd = fromUTCDateTime(existing.end_time as Date);
+              return utcTimesOverlap(shiftStart, shiftEnd, existingStart, existingEnd);
             });
 
             if (hasConflict) {
@@ -880,16 +882,16 @@ export const shift_service = {
 
           successfulCreations.push({
             ...created,
-            start_time: dateTimeToUtcTime(created.start_time as Date),
-            end_time: dateTimeToUtcTime(created.end_time as Date),
+            start_time: fromUTCDateTime(created.start_time as Date),
+            end_time: fromUTCDateTime(created.end_time as Date),
           });
 
         } catch (error: any) {
           if (data.conflict_resolution === 'skip') {
             skippedCreations.push({
               ...shiftData,
-              start_time: dateTimeToUtcTime(shiftData.start_time),
-              end_time: dateTimeToUtcTime(shiftData.end_time),
+              start_time: fromUTCDateTime(shiftData.start_time),
+              end_time: fromUTCDateTime(shiftData.end_time),
               shift_date: shiftData.shift_date.toISOString().split('T')[0],
               reason: error.message || 'UNKNOWN_ERROR',
             });
@@ -922,15 +924,15 @@ export const shift_service = {
     });
 
     if (employees.length !== employeeIds.length) {
-      throw new Error('UNAUTHORIZED_EMPLOYEE_ACCESS');
+      throw new UnauthorizedCompanyAccessError('Employees', employeeIds[0], admin_company_id);
     }
 
     // 2) Convert shifts to internal format for conflict checking
     const shiftsToCheck = data.shifts.map(shift => ({
       company_employee_id: shift.company_employee_id,
       shift_date: new Date(shift.shift_date),
-      start_time: utcTimeToDateTime(shift.start_time),
-      end_time: utcTimeToDateTime(shift.end_time),
+      start_time: toUTCDateTime(shift.start_time),
+      end_time: toUTCDateTime(shift.end_time),
     }));
 
     // 3) Check schedule conflicts
@@ -1044,9 +1046,9 @@ export const shift_service = {
         
         // Check if this slot conflicts with existing shifts
         const hasConflict = existingShifts.some((existing: any) => {
-          const existingStart = dateTimeToUtcTime(existing.start_time as Date);
-          const existingEnd = dateTimeToUtcTime(existing.end_time as Date);
-          return overlap(startTime, endTime, existingStart, existingEnd);
+          const existingStart = fromUTCDateTime(existing.start_time as Date);
+          const existingEnd = fromUTCDateTime(existing.end_time as Date);
+          return utcTimesOverlap(startTime, endTime, existingStart, existingEnd);
         });
 
         if (!hasConflict) {
@@ -1073,8 +1075,8 @@ export const shift_service = {
     const prismaClient = tx || prisma;
 
     // Convert time strings to DateTime for database storage
-    const startDateTime = utcTimeToDateTime(startTime);
-    const endDateTime = utcTimeToDateTime(endTime);
+    const startDateTime = toUTCDateTime(startTime);
+    const endDateTime = toUTCDateTime(endTime);
 
     // Try to find existing pattern
     const existingPattern = await prismaClient.employee_shift_pattern.findUnique({
@@ -1122,7 +1124,7 @@ export const shift_service = {
     });
 
     if (!employee) {
-      throw new Error('UNAUTHORIZED_EMPLOYEE_ACCESS');
+      throw new UnauthorizedCompanyAccessError('Employee', query.employee_id, admin_company_id);
     }
 
     // 2) Get patterns ordered by frequency and recency
@@ -1140,13 +1142,13 @@ export const shift_service = {
     // 3) Convert to response format
     return patterns.map(pattern => ({
       id: pattern.id,
-      start_time: dateTimeToUtcTime(pattern.start_time as Date),
-      end_time: dateTimeToUtcTime(pattern.end_time as Date),
+      start_time: fromUTCDateTime(pattern.start_time as Date),
+      end_time: fromUTCDateTime(pattern.end_time as Date),
       frequency_count: pattern.frequency_count,
       last_used: pattern.last_used.toISOString(),
       duration_hours: this.calculateDurationHours(
-        dateTimeToUtcTime(pattern.start_time as Date),
-        dateTimeToUtcTime(pattern.end_time as Date)
+        fromUTCDateTime(pattern.start_time as Date),
+        fromUTCDateTime(pattern.end_time as Date)
       ),
     }));
   },
@@ -1162,7 +1164,7 @@ export const shift_service = {
     });
 
     if (!employee) {
-      throw new Error('UNAUTHORIZED_EMPLOYEE_ACCESS');
+      throw new UnauthorizedCompanyAccessError('Employee', query.employee_id, admin_company_id);
     }
 
     const suggestions: Array<{
@@ -1187,8 +1189,8 @@ export const shift_service = {
     });
 
     patterns.forEach(pattern => {
-      const startTime = dateTimeToUtcTime(pattern.start_time as Date);
-      const endTime = dateTimeToUtcTime(pattern.end_time as Date);
+      const startTime = fromUTCDateTime(pattern.start_time as Date);
+      const endTime = fromUTCDateTime(pattern.end_time as Date);
       const duration = this.calculateDurationHours(startTime, endTime);
       
       suggestions.push({
@@ -1214,8 +1216,8 @@ export const shift_service = {
       });
 
       recentShifts.forEach(shift => {
-        const startTime = dateTimeToUtcTime(shift.start_time as Date);
-        const endTime = dateTimeToUtcTime(shift.end_time as Date);
+        const startTime = fromUTCDateTime(shift.start_time as Date);
+        const endTime = fromUTCDateTime(shift.end_time as Date);
         const duration = this.calculateDurationHours(startTime, endTime);
 
         // Only add if not already in patterns
@@ -1248,8 +1250,8 @@ export const shift_service = {
       });
 
       templates.forEach(template => {
-        const startTime = dateTimeToUtcTime(template.start_time as Date);
-        const endTime = dateTimeToUtcTime(template.end_time as Date);
+        const startTime = fromUTCDateTime(template.start_time as Date);
+        const endTime = fromUTCDateTime(template.end_time as Date);
         const duration = this.calculateDurationHours(startTime, endTime);
 
         // Only add if not already in suggestions
