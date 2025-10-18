@@ -5,6 +5,8 @@ import { validate_body, validate_query } from '../middlewares/validation_middlew
 import { create_shift_schema, get_shifts_schema, update_shift_schema, duplicate_shift_schema, bulk_create_shifts_schema, validate_conflicts_schema, get_employee_patterns_schema, get_suggestions_schema } from '../validations/shift.validation';
 import { create_shift_handler, delete_shift_handler, get_shifts_handler, update_shift_handler, duplicate_shifts_handler, bulk_create_shifts_handler, validate_conflicts_handler, get_employee_patterns_handler, get_suggestions_handler } from '../controllers/shift.controller';
 import { strictRateLimiter } from '../middlewares/rate-limit.middleware';
+// NEW: Audit middleware for compliance tracking (PLAN.md 2.2)
+import { auditMiddleware } from '../middlewares/audit.middleware';
 
 const router = Router();
 
@@ -29,7 +31,7 @@ const router = Router();
  *       201:
  *         description: Created
  */
-router.post('/', authMiddleware, adminMiddleware, validate_body(create_shift_schema), create_shift_handler);
+router.post('/', authMiddleware, adminMiddleware, validate_body(create_shift_schema), auditMiddleware('shift'), create_shift_handler);
 
 /**
  * @openapi
@@ -95,7 +97,7 @@ router.get('/', authMiddleware, adminMiddleware, validate_query(get_shifts_schem
  *       200:
  *         description: OK
  */
-router.put('/:id', authMiddleware, adminMiddleware, validate_body(update_shift_schema), update_shift_handler);
+router.put('/:id', authMiddleware, adminMiddleware, validate_body(update_shift_schema), auditMiddleware('shift'), update_shift_handler);
 
 /**
  * @openapi
@@ -114,7 +116,7 @@ router.put('/:id', authMiddleware, adminMiddleware, validate_body(update_shift_s
  *       204:
  *         description: No Content
  */
-router.delete('/:id', authMiddleware, adminMiddleware, delete_shift_handler);
+router.delete('/:id', authMiddleware, adminMiddleware, auditMiddleware('shift'), delete_shift_handler);
 
 /**
  * @openapi

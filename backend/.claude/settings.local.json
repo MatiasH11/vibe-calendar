@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/matia/OneDrive/Documentos/personal/vibe-calendar/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

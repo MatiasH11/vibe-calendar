@@ -1,29 +1,19 @@
 import { prisma } from '../config/prisma_client';
 import { create_shift_body, get_shifts_query, update_shift_body, duplicate_shift_body, bulk_create_shifts_body, validate_conflicts_body, get_employee_patterns_query, get_suggestions_query } from '../validations/shift.validation';
+// NEW: Pure UTC time utilities (PLAN.md 4.2)
+// Backend ONLY handles UTC. No timezone conversions. Frontend is responsible for timezone handling.
 import {
-  utcTimeToDateTime,
-  dateTimeToUtcTime,
-  validateTimeFormat,
-  timeRangesOverlap
-} from '../utils/time-conversion.utils';
-
-// Helper functions
-const utcTimeToLocal = (dateTime: Date, shiftDate: Date): string => {
-  return dateTime.toISOString().substring(11, 16);
-};
-
-const localTimeToUTC = (localTime: string, shiftDate: Date): Date => {
-  return new Date(`1970-01-01T${localTime}:00.000Z`);
-};
-
-const timeLess = (a: string, b: string) => a < b;
-const overlap = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
-  return timeRangesOverlap(aStart, aEnd, bStart, bEnd);
-};
+  toUTCDateTime,
+  fromUTCDateTime,
+  validateUTCTimeFormat,
+  utcTimesOverlap,
+  isValidTimeRange,
+  calculateDurationMinutes
+} from '../utils/time.utils';
 
 export const shift_service = {
   async create(data: create_shift_body, admin_company_id: number) {
-    // 1) Pertenencia de empleado a la misma company
+    // 1) Verify employee belongs to the same company
     const employee = await prisma.company_employee.findFirst({
       where: { id: data.company_employee_id, company_id: admin_company_id, deleted_at: null },
     });
@@ -31,11 +21,12 @@ export const shift_service = {
       throw new Error('UNAUTHORIZED_COMPANY_ACCESS');
     }
 
-    // 2) Validaciones de formato y hora (no overnight)
-    if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
+    // 2) Validate UTC time format and no overnight shifts (PLAN.md 4.2)
+    // All times are expected in UTC format (HH:mm) from frontend
+    if (!validateUTCTimeFormat(data.start_time) || !validateUTCTimeFormat(data.end_time)) {
       throw new Error('INVALID_TIME_FORMAT');
     }
-    if (!timeLess(data.start_time, data.end_time)) {
+    if (!isValidTimeRange(data.start_time, data.end_time)) {
       throw new Error('OVERNIGHT_NOT_ALLOWED');
     }
 
@@ -49,40 +40,44 @@ export const shift_service = {
         },
       });
 
-      // El frontend ya envía tiempos UTC, solo validar formato
-      if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
-        throw new Error('INVALID_TIME_FORMAT');
-      }
-      
-      // Validar solapamiento con tiempos UTC
+      // Check for overlaps with existing shifts
+      // All times are in UTC format (HH:mm) - no conversion needed
       for (const s of existing) {
-        const sStart = dateTimeToUtcTime(s.start_time as Date);
-        const sEnd = dateTimeToUtcTime(s.end_time as Date);
-        if (overlap(data.start_time, data.end_time, sStart, sEnd)) {
+        const sStart = fromUTCDateTime(s.start_time as Date);
+        const sEnd = fromUTCDateTime(s.end_time as Date);
+        if (utcTimesOverlap(data.start_time, data.end_time, sStart, sEnd)) {
           throw new Error('SHIFT_OVERLAP');
         }
       }
 
-      // 4) Crear el turno con tiempos UTC (convertir a DateTime para BD)
-      const created = await tx.shift.create({
-        data: {
-          company_employee_id: data.company_employee_id,
-          shift_date: new Date(data.shift_date),
-          start_time: utcTimeToDateTime(data.start_time),
-          end_time: utcTimeToDateTime(data.end_time),
-          notes: data.notes,
-        },
-      });
+      // 4) Create shift with UTC times (convert to DateTime for PostgreSQL)
+      try {
+        const created = await tx.shift.create({
+          data: {
+            company_employee_id: data.company_employee_id,
+            shift_date: new Date(data.shift_date),
+            start_time: toUTCDateTime(data.start_time),
+            end_time: toUTCDateTime(data.end_time),
+            notes: data.notes,
+          },
+        });
 
-      // 5) Update employee shift patterns
-      await this.updateEmployeePattern(
-        data.company_employee_id,
-        data.start_time,
-        data.end_time,
-        tx
-      );
+        // 5) Update employee shift patterns
+        await this.updateEmployeePattern(
+          data.company_employee_id,
+          data.start_time,
+          data.end_time,
+          tx
+        );
 
-      return created;
+        return created;
+      } catch (error: any) {
+        // Manejar error de constraint de unicidad (PLAN.md 1.2)
+        if (error.code === 'P2002' && error.meta?.target?.includes('unique_shift_constraint')) {
+          throw new Error('SHIFT_DUPLICATE_EXACT');
+        }
+        throw error;
+      }
     });
   },
 
@@ -103,11 +98,11 @@ export const shift_service = {
       include: { company_employee: { include: { user: true } } },
     });
     
-    // Devolver tiempos UTC al frontend (el frontend se encarga de la conversión)
+    // Return UTC times to frontend (frontend handles timezone conversion)
     return shifts.map(shift => ({
       ...shift,
-      start_time: dateTimeToUtcTime(shift.start_time as Date),
-      end_time: dateTimeToUtcTime(shift.end_time as Date),
+      start_time: fromUTCDateTime(shift.start_time as Date),
+      end_time: fromUTCDateTime(shift.end_time as Date),
     }));
   },
 

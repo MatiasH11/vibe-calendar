@@ -137,11 +137,16 @@ The frontend uses Next.js App Router with a component-based architecture:
 - All queries are company-scoped for multi-tenancy
 - Soft deletes via `deleted_at` timestamp
 
-**Time Handling:**
-- Database stores times as PostgreSQL `Time` type (UTC)
-- Backend converts between UTC time strings (HH:MM) and DateTime objects
-- Frontend receives UTC times and handles timezone conversion in UI
-- Shift dates stored as PostgreSQL `Date` type
+**Time Handling - UTC ONLY Policy (PLAN.md 4):**
+- **CRITICAL:** Backend ONLY handles UTC. No timezone conversions. No adapters.
+- **Input:** Frontend sends times in UTC format (HH:mm string, e.g., "14:30")
+- **Processing:** Backend works internally in UTC using `time.utils.ts`
+- **Storage:** PostgreSQL `Time` type (UTC) via Prisma DateTime objects
+- **Output:** Backend returns times in UTC format (HH:mm string)
+- **Frontend Responsibility:** ALL timezone conversion to/from user's local timezone
+- **Validation:** Zod schemas reject any timezone information (+00:00, Z, etc.)
+- **Utilities:** Use ONLY functions from `backend/src/utils/time.utils.ts`
+- **Shift dates:** Stored as PostgreSQL `Date` type (date only, no time component)
 
 ### Shift Management System
 
@@ -195,11 +200,19 @@ The shift system is the most complex part of the application:
 - Loading and error states handled via query states
 - Toast notifications via `sonner` library
 
-### Time Zone Handling
-- Backend stores all times in UTC as database Time objects
-- Backend exposes UTC time strings to frontend in HH:MM format
-- Frontend receives UTC times and converts to user's local timezone for display
-- When creating/updating shifts, frontend sends local times which backend converts to UTC
+### Time Zone Handling - DEPRECATED (See "Time Handling - UTC ONLY Policy" above)
+**NOTE:** This section contains outdated information. The system has been refactored to follow a pure UTC-only approach.
+
+**Old Approach (DEPRECATED):**
+- ~~Backend converts between local and UTC times~~ ❌
+- ~~Frontend sends local times to backend~~ ❌
+
+**New Approach (CURRENT - PLAN.md 4):**
+- Backend ONLY handles UTC (HH:mm format)
+- Frontend ONLY sends UTC times to backend
+- Frontend handles ALL timezone conversions for display
+- Use `backend/src/utils/time.utils.ts` for all time operations
+- NEVER use deprecated `time-conversion.utils.ts`
 
 ### Permissions System
 - User types: `admin` (full access) and `employee` (limited access)

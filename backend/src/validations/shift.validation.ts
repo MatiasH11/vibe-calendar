@@ -1,20 +1,47 @@
 import { z } from 'zod';
 
-const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm 00-23:00-59
+/**
+ * UTC Time Regex - HH:mm format (PLAN.md 4.3)
+ * Backend ONLY accepts UTC times. No timezone information allowed.
+ * Valid: "09:00", "14:30", "23:59"
+ * Invalid: "9:00" (missing leading zero), "14:30:00" (with seconds), "14:30+00:00" (with timezone)
+ */
+const utcTimeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm 00-23:00-59
 
 export const create_shift_schema = z.object({
   company_employee_id: z.number().int(),
   shift_date: z.string().min(1),
-  start_time: z.string().regex(timeRegex, { message: 'start_time must be HH:mm' }),
-  end_time: z.string().regex(timeRegex, { message: 'end_time must be HH:mm' }),
+  start_time: z.string()
+    .regex(utcTimeRegex, { message: 'start_time must be UTC time in HH:mm format (e.g., "14:30")' })
+    .refine((time) => !time.includes('+') && !time.includes('Z'), {
+      message: 'start_time must NOT include timezone information. Send UTC time only.',
+    }),
+  end_time: z.string()
+    .regex(utcTimeRegex, { message: 'end_time must be UTC time in HH:mm format (e.g., "17:00")' })
+    .refine((time) => !time.includes('+') && !time.includes('Z'), {
+      message: 'end_time must NOT include timezone information. Send UTC time only.',
+    }),
   notes: z.string().optional(),
-});
+}).refine(
+  (data) => data.end_time > data.start_time,
+  { message: 'end_time must be after start_time (overnight shifts not allowed)', path: ['end_time'] }
+);
 
 export const update_shift_schema = z.object({
   company_employee_id: z.number().int().optional(),
   shift_date: z.string().optional(),
-  start_time: z.string().regex(timeRegex, { message: 'start_time must be HH:mm' }).optional(),
-  end_time: z.string().regex(timeRegex, { message: 'end_time must be HH:mm' }).optional(),
+  start_time: z.string()
+    .regex(utcTimeRegex, { message: 'start_time must be UTC time in HH:mm format' })
+    .refine((time) => !time.includes('+') && !time.includes('Z'), {
+      message: 'start_time must NOT include timezone information. Send UTC time only.',
+    })
+    .optional(),
+  end_time: z.string()
+    .regex(utcTimeRegex, { message: 'end_time must be UTC time in HH:mm format' })
+    .refine((time) => !time.includes('+') && !time.includes('Z'), {
+      message: 'end_time must NOT include timezone information. Send UTC time only.',
+    })
+    .optional(),
   notes: z.string().optional(),
 });
 
@@ -47,8 +74,16 @@ export const duplicate_shift_schema = z.object({
 export const bulk_create_shifts_schema = z.object({
   employee_ids: z.array(z.number().int()).min(1).max(50),
   dates: z.array(z.string().min(1)).min(1).max(31),
-  start_time: z.string().regex(timeRegex, { message: 'start_time must be HH:mm' }),
-  end_time: z.string().regex(timeRegex, { message: 'end_time must be HH:mm' }),
+  start_time: z.string()
+    .regex(utcTimeRegex, { message: 'start_time must be UTC time in HH:mm format' })
+    .refine((time) => !time.includes('+') && !time.includes('Z'), {
+      message: 'start_time must NOT include timezone information. Send UTC time only.',
+    }),
+  end_time: z.string()
+    .regex(utcTimeRegex, { message: 'end_time must be UTC time in HH:mm format' })
+    .refine((time) => !time.includes('+') && !time.includes('Z'), {
+      message: 'end_time must NOT include timezone information. Send UTC time only.',
+    }),
   notes: z.string().optional(),
   template_id: z.number().int().optional(),
   conflict_resolution: z.enum(['skip', 'overwrite', 'fail']).default('fail'),

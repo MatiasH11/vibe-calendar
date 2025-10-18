@@ -22,6 +22,16 @@ export const create_shift_handler = async (
     if (error?.message === 'SHIFT_OVERLAP') {
       return res.status(HTTP_CODES.CONFLICT).json({ success: false, error: { error_code: 'SHIFT_OVERLAP', message: 'Shift overlaps with an existing one' } });
     }
+    // NUEVO: Manejo de duplicado exacto (PLAN.md 1.2)
+    if (error?.message === 'SHIFT_DUPLICATE_EXACT') {
+      return res.status(HTTP_CODES.CONFLICT).json({
+        success: false,
+        error: {
+          error_code: 'SHIFT_DUPLICATE_EXACT',
+          message: 'An identical shift already exists for this employee on this date and time'
+        }
+      });
+    }
     next(error);
   }
 };

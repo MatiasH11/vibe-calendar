@@ -12,8 +12,9 @@ import roleRouter from './routes/role.routes';
 import employeeRouter from './routes/employee.routes';
 import shiftRouter from './routes/shift.routes';
 import shiftTemplateRouter from './routes/shift-template.routes';
-// NUEVA: Ruta de estadísticas
 import statisticsRouter from './routes/statistics.routes';
+// NEW: Audit routes (PLAN.md 2.3)
+import auditRouter from './routes/audit.routes';
 
 const app: Express = express();
 
@@ -58,14 +59,15 @@ app.get('/api/v1/health', async (req: Request, res: Response) => {
   res.status(statusCode).json(healthCheck);
 });
 
-// Registrar aquí las rutas de la aplicación (ej. /api/v1/auth, /api/v1/roles, ...)
+// Register application routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/roles', roleRouter);
 app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/shifts', shiftRouter);
 app.use('/api/v1/shift-templates', shiftTemplateRouter);
-// NUEVA: Ruta de estadísticas
 app.use('/api/v1/statistics', statisticsRouter);
+// NEW: Audit routes (PLAN.md 2.3)
+app.use('/api/v1/audit', auditRouter);
 
 // Global Error Handler (debe ser el último middleware)
 app.use(error_handler);
