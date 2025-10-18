@@ -3,6 +3,7 @@ import { create_shift_body, get_shifts_query, update_shift_body, duplicate_shift
 // NEW: Pure UTC time utilities (PLAN.md 4.2)
 // Backend ONLY handles UTC. No timezone conversions. Frontend is responsible for timezone handling.
 import {
+<<<<<<< HEAD
   toUTCDateTime,
   fromUTCDateTime,
   validateUTCTimeFormat,
@@ -10,6 +11,40 @@ import {
   isValidTimeRange,
   calculateDurationMinutes
 } from '../utils/time.utils';
+=======
+  utcTimeToDateTime,
+  dateTimeToUtcTime,
+  validateTimeFormat,
+  timeRangesOverlap
+} from '../utils/time-conversion.utils';
+import {
+  UnauthorizedCompanyAccessError,
+  UnauthorizedEmployeeAccessError,
+  InvalidTimeFormatError,
+  OvernightNotAllowedError,
+  ShiftOverlapError,
+  UnauthorizedShiftAccessError,
+  DuplicationConflictsDetectedError,
+  BulkCreationConflictsDetectedError,
+  InvalidStartTimeFormatError,
+  InvalidEndTimeFormatError,
+  TemplateNotFoundError,
+} from '../errors';
+
+// Helper functions
+const utcTimeToLocal = (dateTime: Date, shiftDate: Date): string => {
+  return dateTime.toISOString().substring(11, 16);
+};
+
+const localTimeToUTC = (localTime: string, shiftDate: Date): Date => {
+  return new Date(`1970-01-01T${localTime}:00.000Z`);
+};
+
+const timeLess = (a: string, b: string) => a < b;
+const overlap = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
+  return timeRangesOverlap(aStart, aEnd, bStart, bEnd);
+};
+>>>>>>> a9681daf01dd996ab9cf9156fc3b346286e44884
 
 export const shift_service = {
   async create(data: create_shift_body, admin_company_id: number) {
@@ -18,7 +53,7 @@ export const shift_service = {
       where: { id: data.company_employee_id, company_id: admin_company_id, deleted_at: null },
     });
     if (!employee) {
-      throw new Error('UNAUTHORIZED_COMPANY_ACCESS');
+      throw new UnauthorizedCompanyAccessError('Employee', data.company_employee_id, admin_company_id);
     }
 
     // 2) Validate UTC time format and no overnight shifts (PLAN.md 4.2)
@@ -40,6 +75,7 @@ export const shift_service = {
         },
       });
 
+<<<<<<< HEAD
       // Check for overlaps with existing shifts
       // All times are in UTC format (HH:mm) - no conversion needed
       for (const s of existing) {
@@ -47,6 +83,19 @@ export const shift_service = {
         const sEnd = fromUTCDateTime(s.end_time as Date);
         if (utcTimesOverlap(data.start_time, data.end_time, sStart, sEnd)) {
           throw new Error('SHIFT_OVERLAP');
+=======
+      // El frontend ya envía tiempos UTC, solo validar formato
+      if (!validateTimeFormat(data.start_time) || !validateTimeFormat(data.end_time)) {
+        throw new InvalidTimeFormatError('start_time or end_time', `${data.start_time} - ${data.end_time}`);
+      }
+
+      // Validar solapamiento con tiempos UTC
+      for (const s of existing) {
+        const sStart = dateTimeToUtcTime(s.start_time as Date);
+        const sEnd = dateTimeToUtcTime(s.end_time as Date);
+        if (overlap(data.start_time, data.end_time, sStart, sEnd)) {
+          throw new ShiftOverlapError(data.company_employee_id, data.shift_date, s);
+>>>>>>> a9681daf01dd996ab9cf9156fc3b346286e44884
         }
       }
 

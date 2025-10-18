@@ -4,17 +4,24 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AUTH_CONSTANTS, BUSINESS_ROLES, USER_TYPES } from '../constants/auth';
 import { env } from '../config/environment';
+import {
+  EmailAlreadyExistsError,
+  CompanyNameAlreadyExistsError,
+  InvalidCredentialsError,
+  UserNotAssociatedWithCompanyError,
+  TransactionFailedError,
+} from '../errors';
 
 export const auth_service = {
   async register(data: register_body) {
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
-      throw new Error('EMAIL_ALREADY_EXISTS');
+      throw new EmailAlreadyExistsError(data.email);
     }
 
     const existingCompany = await prisma.company.findFirst({ where: { name: data.company_name } });
     if (existingCompany) {
-      throw new Error('COMPANY_NAME_ALREADY_EXISTS');
+      throw new CompanyNameAlreadyExistsError(data.company_name);
     }
 
     const password_hash = await bcrypt.hash(data.password, AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS);
@@ -64,19 +71,19 @@ export const auth_service = {
 
       return { success: true, data: { company_id: result.company.id, user_id: result.user.id, role_id: result.role.id, employee_id: result.employee.id } };
     } catch (e) {
-      throw new Error('TRANSACTION_FAILED');
+      throw new TransactionFailedError('User registration');
     }
   },
 
   async login(data: login_body) {
     const user = await prisma.user.findUnique({ where: { email: data.email } });
     if (!user) {
-      throw new Error('INVALID_CREDENTIALS');
+      throw new InvalidCredentialsError();
     }
 
     const valid = await bcrypt.compare(data.password, user.password_hash);
     if (!valid) {
-      throw new Error('INVALID_CREDENTIALS');
+      throw new InvalidCredentialsError();
     }
 
     const employee = await prisma.company_employee.findFirst({
@@ -85,7 +92,7 @@ export const auth_service = {
     });
 
     if (!employee) {
-      throw new Error('USER_NOT_ASSOCIATED_WITH_COMPANY');
+      throw new UserNotAssociatedWithCompanyError(user.id);
     }
 
     // Usar user_type directamente de la base de datos
