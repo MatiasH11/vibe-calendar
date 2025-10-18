@@ -17,6 +17,8 @@ import shiftTemplateRouter from './routes/shift-template.routes';
 import statisticsRouter from './routes/statistics.routes';
 // NEW: Audit routes (PLAN.md 2.3)
 import auditRouter from './routes/audit.routes';
+// NEW: Company Settings routes (PLAN.md 5.3)
+import companySettingsRouter from './routes/company-settings.routes';
 
 const app: Express = express();
 
@@ -87,6 +89,8 @@ app.use('/api/v1/shift-templates', shiftTemplateRouter);
 app.use('/api/v1/statistics', statisticsRouter);
 // NEW: Audit routes (PLAN.md 2.3)
 app.use('/api/v1/audit', auditRouter);
+// NEW: Company Settings routes (PLAN.md 5.3)
+app.use('/api/v1/companies/settings', companySettingsRouter);
 
 // Global Error Handler (debe ser el último middleware)
 app.use(error_handler);

@@ -3,7 +3,16 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npm run build)"
+      "Bash(npm run prisma:migrate -- dev --name add_company_settings)",
+      "Bash(npx prisma migrate status)",
+      "Bash(npx prisma migrate deploy)",
+      "Bash(npx prisma migrate dev --name add_company_settings)",
+      "Bash(npm test -- company-settings.service.test.ts)",
+      "Bash(npm run build)",
+      "Bash(npx tsc --noEmit src/services/company-settings.service.ts src/controllers/company-settings.controller.ts src/validations/company-settings.validation.ts)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(npm test -- company-settings)",
+      "Bash(npm test -- repositories.test.ts)"
     ],
     "deny": [],
     "ask": []

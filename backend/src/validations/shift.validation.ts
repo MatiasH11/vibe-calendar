@@ -95,8 +95,8 @@ export const validate_conflicts_schema = z.object({
   shifts: z.array(z.object({
     company_employee_id: z.number().int(),
     shift_date: z.string().min(1),
-    start_time: z.string().regex(timeRegex, { message: 'start_time must be HH:mm' }),
-    end_time: z.string().regex(timeRegex, { message: 'end_time must be HH:mm' }),
+    start_time: z.string().regex(utcTimeRegex, { message: 'start_time must be HH:mm' }),
+    end_time: z.string().regex(utcTimeRegex, { message: 'end_time must be HH:mm' }),
   })).min(1).max(100),
 });
 

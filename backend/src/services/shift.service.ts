@@ -9,42 +9,16 @@ import {
   validateUTCTimeFormat,
   utcTimesOverlap,
   isValidTimeRange,
-  calculateDurationMinutes
-} from '../utils/time.utils';
-=======
-  utcTimeToDateTime,
+  calculateDurationMinutes,
+  // Deprecated functions still in use - to be refactored
   dateTimeToUtcTime,
+  utcTimeToDateTime,
   validateTimeFormat,
-  timeRangesOverlap
-} from '../utils/time-conversion.utils';
-import {
-  UnauthorizedCompanyAccessError,
-  UnauthorizedEmployeeAccessError,
-  InvalidTimeFormatError,
-  OvernightNotAllowedError,
-  ShiftOverlapError,
-  UnauthorizedShiftAccessError,
-  DuplicationConflictsDetectedError,
-  BulkCreationConflictsDetectedError,
-  InvalidStartTimeFormatError,
-  InvalidEndTimeFormatError,
-  TemplateNotFoundError,
-} from '../errors';
-
-// Helper functions
-const utcTimeToLocal = (dateTime: Date, shiftDate: Date): string => {
-  return dateTime.toISOString().substring(11, 16);
-};
-
-const localTimeToUTC = (localTime: string, shiftDate: Date): Date => {
-  return new Date(`1970-01-01T${localTime}:00.000Z`);
-};
-
-const timeLess = (a: string, b: string) => a < b;
-const overlap = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
-  return timeRangesOverlap(aStart, aEnd, bStart, bEnd);
-};
->>>>>>> a9681daf01dd996ab9cf9156fc3b346286e44884
+  timeLess,
+  overlap,
+} from '../utils/time.utils';
+// NEW: Company settings service for configurable business rules (PLAN.md 5.2)
+import { company_settings_service } from './company-settings.service';
 
 export const shift_service = {
   async create(data: create_shift_body, admin_company_id: number) {
@@ -625,7 +599,13 @@ export const shift_service = {
       message: string;
     }> = [];
 
-    // Rule 1: Maximum daily hours (configurable, default 12 hours)
+    // PLAN.md 5.2: Get company-specific settings for business rules
+    const settings = await company_settings_service.getSettings(companyId);
+    const maxDailyHours = parseFloat(settings.max_daily_hours.toString());
+    const maxWeeklyHours = parseFloat(settings.max_weekly_hours.toString());
+    const minBreakHours = parseFloat(settings.min_break_hours.toString());
+
+    // Rule 1: Maximum daily hours (configured per company)
     const existingShifts = await prisma.shift.findMany({
       where: {
         company_employee_id: employeeId,
@@ -642,21 +622,21 @@ export const shift_service = {
     }, 0);
 
     const totalDailyHours = existingDailyHours + newShiftDuration;
-    if (totalDailyHours > 12) {
+    if (totalDailyHours > maxDailyHours) {
       violations.push({
         rule: 'MAX_DAILY_HOURS',
         severity: 'error',
-        message: `Total daily hours (${totalDailyHours}h) exceeds maximum allowed (12h)`,
+        message: `Total daily hours (${totalDailyHours}h) exceeds maximum allowed (${maxDailyHours}h)`,
       });
-    } else if (totalDailyHours > 10) {
+    } else if (totalDailyHours > maxDailyHours * 0.83) { // 83% threshold for warning (e.g., 10h for 12h max)
       violations.push({
         rule: 'RECOMMENDED_DAILY_HOURS',
         severity: 'warning',
-        message: `Total daily hours (${totalDailyHours}h) exceeds recommended limit (10h)`,
+        message: `Total daily hours (${totalDailyHours}h) exceeds recommended limit (${Math.round(maxDailyHours * 0.83 * 10) / 10}h)`,
       });
     }
 
-    // Rule 2: Minimum break between shifts (8 hours)
+    // Rule 2: Minimum break between shifts (configured per company)
     const previousDay = new Date(shiftDate);
     previousDay.setDate(previousDay.getDate() - 1);
     const nextDay = new Date(shiftDate);
@@ -673,7 +653,7 @@ export const shift_service = {
     for (const adjacentShift of adjacentShifts) {
       const adjStart = dateTimeToUtcTime(adjacentShift.start_time as Date);
       const adjEnd = dateTimeToUtcTime(adjacentShift.end_time as Date);
-      
+
       let breakHours = 0;
       if (adjacentShift.shift_date < shiftDate) {
         // Previous day shift
@@ -683,16 +663,16 @@ export const shift_service = {
         breakHours = this.calculateBreakHours(endTime, adjStart);
       }
 
-      if (breakHours < 8) {
+      if (breakHours < minBreakHours) {
         violations.push({
           rule: 'MINIMUM_BREAK_HOURS',
           severity: 'error',
-          message: `Insufficient break time (${breakHours}h) between shifts. Minimum 8 hours required.`,
+          message: `Insufficient break time (${breakHours}h) between shifts. Minimum ${minBreakHours}h required.`,
         });
       }
     }
 
-    // Rule 3: Maximum weekly hours (configurable, default 40 hours)
+    // Rule 3: Maximum weekly hours (configured per company)
     const weekStart = new Date(shiftDate);
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     const weekEnd = new Date(weekStart);
@@ -715,11 +695,11 @@ export const shift_service = {
       return total + this.calculateDurationHours(start, end);
     }, 0) + newShiftDuration;
 
-    if (weeklyHours > 40) {
+    if (weeklyHours > maxWeeklyHours) {
       violations.push({
         rule: 'MAX_WEEKLY_HOURS',
         severity: 'warning',
-        message: `Total weekly hours (${weeklyHours}h) exceeds standard limit (40h)`,
+        message: `Total weekly hours (${weeklyHours}h) exceeds limit (${maxWeeklyHours}h)`,
       });
     }
 
