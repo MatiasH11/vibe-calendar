@@ -7,168 +7,196 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model company {
+  id              Int               @id @default(autoincrement())
+  name            String
+  business_name   String?
+  email           String            @unique
+  phone           String?
+  is_active       Boolean           @default(true)
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  deleted_at      DateTime?
+  audit_logs      audit_log[]
+  settings        company_settings?
+  departments     department[]
+  employees       employee[]
+  shift_templates shift_template[]
+}
+
+model user {
+  id                      Int              @id @default(autoincrement())
+  first_name              String
+  last_name               String
+  email                   String           @unique
+  password_hash           String
+  created_at              DateTime         @default(now())
+  updated_at              DateTime         @updatedAt
+  deleted_at              DateTime?
+  user_type               user_type        @default(USER)
+  is_active               Boolean          @default(true)
+  audit_logs              audit_log[]
+  employees               employee[]
+  created_shift_templates shift_template[]
+
+  @@index([email, deleted_at], map: "idx_user_email_deleted")
+  @@index([user_type, is_active, deleted_at], map: "idx_user_type_active")
+}
+
+model department {
+  id          Int        @id @default(autoincrement())
+  company_id  Int
+  name        String
+  description String?
+  color       String     @default("#3B82F6")
+  is_active   Boolean    @default(true)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  deleted_at  DateTime?
+  company     company    @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  employees   employee[]
+
+  @@unique([company_id, name])
+  @@index([company_id, deleted_at], map: "idx_department_company_deleted")
+  @@index([company_id, name, deleted_at], map: "idx_department_name_search")
+}
+
+model employee {
+  id             Int                      @id @default(autoincrement())
+  company_id     Int
+  user_id        Int
+  department_id  Int
+  company_role   company_role             @default(EMPLOYEE)
+  position       String?
+  is_active      Boolean                  @default(true)
+  created_at     DateTime                 @default(now())
+  updated_at     DateTime                 @updatedAt
+  deleted_at     DateTime?
+  company        company                  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  department     department               @relation(fields: [department_id], references: [id])
+  user           user                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  shift_patterns employee_shift_pattern[]
+  shifts         shift[]
+
+  @@unique([company_id, user_id])
+  @@index([company_id, deleted_at, is_active], map: "idx_employee_company_active")
+  @@index([company_id, department_id, deleted_at], map: "idx_employee_department")
+  @@index([company_id, company_role, deleted_at], map: "idx_employee_role")
+  @@index([user_id, deleted_at], map: "idx_employee_user")
+  @@index([company_id, user_id, deleted_at], map: "idx_employee_lookup")
+}
+
+model shift {
+  id          Int          @id @default(autoincrement())
+  employee_id Int
+  shift_date  DateTime     @db.Date
+  start_time  DateTime     @db.Time(6)
+  end_time    DateTime     @db.Time(6)
+  notes       String?
+  status      shift_status @default(confirmed)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  deleted_at  DateTime?
+  employee    employee     @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_id, shift_date], map: "idx_shift_employee_date")
+  @@index([employee_id, shift_date, deleted_at], map: "idx_shift_employee_date_deleted")
+  @@index([shift_date, deleted_at], map: "idx_shift_date_deleted")
+  @@index([employee_id, status, deleted_at], map: "idx_shift_employee_status_deleted")
+  @@index([shift_date, start_time, deleted_at], map: "idx_shift_date_time_deleted")
+}
+
+model shift_template {
+  id              Int       @id @default(autoincrement())
+  company_id      Int
+  name            String    @db.VarChar(100)
+  description     String?
+  start_time      DateTime  @db.Time(6)
+  end_time        DateTime  @db.Time(6)
+  usage_count     Int       @default(0)
+  created_by      Int?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
+  company         company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  created_by_user user?     @relation(fields: [created_by], references: [id])
+
+  @@unique([company_id, name])
+  @@index([company_id, deleted_at], map: "idx_shift_template_company_deleted")
+  @@index([company_id, usage_count(sort: Desc)], map: "idx_shift_template_usage")
+  @@index([company_id, name, deleted_at], map: "idx_shift_template_name_search")
+}
+
+model employee_shift_pattern {
+  id              Int      @id @default(autoincrement())
+  employee_id     Int
+  start_time      DateTime @db.Time(6)
+  end_time        DateTime @db.Time(6)
+  frequency_count Int      @default(1)
+  last_used       DateTime @default(now())
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  employee        employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@unique([employee_id, start_time, end_time])
+  @@index([employee_id, frequency_count(sort: Desc)], map: "idx_pattern_frequency")
+  @@index([employee_id, last_used(sort: Desc)], map: "idx_pattern_last_used")
+}
+
+model audit_log {
+  id          Int          @id @default(autoincrement())
+  user_id     Int
+  company_id  Int
+  action      audit_action
+  entity_type String
+  entity_id   Int?
+  old_values  Json?
+  new_values  Json?
+  ip_address  String?      @db.VarChar(45)
+  user_agent  String?
+  created_at  DateTime     @default(now())
+  company     company      @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user        user         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id, created_at(sort: Desc)], map: "idx_audit_company_date")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_audit_user_date")
+  @@index([entity_type, entity_id], map: "idx_audit_entity")
+  @@index([action, created_at(sort: Desc)], map: "idx_audit_action_date")
+}
+
+model company_settings {
+  id                     Int      @id @default(autoincrement())
+  company_id             Int      @unique
+  max_daily_hours        Decimal  @default(12.0) @db.Decimal(4, 1)
+  max_weekly_hours       Decimal  @default(40.0) @db.Decimal(5, 1)
+  min_break_hours        Decimal  @default(11.0) @db.Decimal(4, 1)
+  allow_overnight_shifts Boolean  @default(false)
+  timezone               String   @default("UTC") @db.VarChar(50)
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+  company                company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@index([company_id], map: "idx_company_settings_company")
+}
+
 enum shift_status {
   draft
   confirmed
   cancelled
 }
 
-model company {
-  id          Int       @id @default(autoincrement())
-  name        String
-  business_name String?
-  email       String    @unique
-  phone       String?
-  is_active   Boolean   @default(true)
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  deleted_at  DateTime?
-
-  roles               role[]
-  company_employees   company_employee[]
-  shift_templates     shift_template[]
-  audit_logs          audit_log[] // PLAN.md 2.1
-  settings            company_settings? // PLAN.md 5.1
+enum company_role {
+  OWNER
+  ADMIN
+  MANAGER
+  EMPLOYEE
 }
 
 enum user_type {
-  admin
-  employee
+  SUPER_ADMIN
+  USER
 }
 
-model user {
-  id           Int       @id @default(autoincrement())
-  first_name   String
-  last_name    String
-  email        String    @unique
-  password_hash String
-  user_type    user_type @default(employee)
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  deleted_at   DateTime?
-
-  company_employees company_employee[]
-  created_shift_templates shift_template[]
-  audit_logs          audit_log[] // PLAN.md 2.1
-}
-
-model role {
-  id          Int      @id @default(autoincrement())
-  company_id  Int
-  name        String
-  description String?
-  color       String   @default("#FFFFFF")
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  company company @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  employees company_employee[]
-
-  @@unique([company_id, name])
-}
-
-model company_employee {
-  id          Int      @id @default(autoincrement())
-  company_id  Int
-  user_id     Int
-  role_id     Int
-  position    String?
-  is_active   Boolean  @default(true)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime?
-
-  company company @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  user    user    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  role    role    @relation(fields: [role_id], references: [id], onDelete: Restrict)
-  shifts  shift[]
-  shift_patterns employee_shift_pattern[]
-
-  @@unique([company_id, user_id])
-
-  // Índices existentes
-  @@index([company_id, deleted_at, is_active])
-  @@index([company_id, role_id, deleted_at])
-  @@index([user_id, deleted_at])
-
-  // NUEVO: Índice para lookups rápidos company+user (PLAN.md 1.1)
-  @@index([company_id, user_id, deleted_at], name: "idx_company_employee_lookup")
-}
-
-model shift {
-  id                   Int      @id @default(autoincrement())
-  company_employee_id  Int
-  shift_date           DateTime @db.Date
-  start_time           DateTime @db.Time
-  end_time             DateTime @db.Time
-  notes                String?
-  status               shift_status @default(confirmed)
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
-  deleted_at           DateTime?
-
-  company_employee company_employee @relation(fields: [company_employee_id], references: [id], onDelete: Cascade)
-
-  // Índices existentes (mantener para compatibilidad)
-  @@index([company_employee_id, shift_date])
-  @@index([company_employee_id, shift_date, deleted_at])
-  @@index([shift_date, deleted_at])
-
-  // NUEVOS: Índices compuestos optimizados (PLAN.md 1.1)
-  @@index([company_employee_id, status, deleted_at], name: "idx_shift_employee_status_deleted")
-  @@index([shift_date, start_time, deleted_at], name: "idx_shift_date_time_deleted")
-
-  // NUEVO: Constraint de unicidad para prevenir duplicados exactos (PLAN.md 1.2)
-  // Previene: mismo empleado + misma fecha + mismo horario + activo (not deleted)
-  // Permite: duplicados si uno está eliminado (soft delete)
-  @@unique([company_employee_id, shift_date, start_time, end_time, deleted_at], name: "unique_shift_constraint")
-}
-
-model shift_template {
-  id          Int      @id @default(autoincrement())
-  company_id  Int
-  name        String   @db.VarChar(100)
-  description String?
-  start_time  DateTime @db.Time
-  end_time    DateTime @db.Time
-  usage_count Int      @default(0)
-  created_by  Int
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime?
-
-  company    company @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  created_by_user user @relation(fields: [created_by], references: [id], onDelete: Restrict)
-
-  @@unique([company_id, name])
-
-  // Índices existentes
-  @@index([company_id, deleted_at])
-  @@index([company_id, usage_count(sort: Desc)])
-
-  // NUEVO: Índice para búsquedas por nombre (PLAN.md 1.1)
-  @@index([company_id, name, deleted_at], name: "idx_shift_template_name_search")
-}
-
-model employee_shift_pattern {
-  id                   Int      @id @default(autoincrement())
-  company_employee_id  Int
-  start_time           DateTime @db.Time
-  end_time             DateTime @db.Time
-  frequency_count      Int      @default(1)
-  last_used            DateTime @default(now())
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
-
-  company_employee company_employee @relation(fields: [company_employee_id], references: [id], onDelete: Cascade)
-
-  @@unique([company_employee_id, start_time, end_time])
-  @@index([company_employee_id, frequency_count(sort: Desc)])
-  @@index([company_employee_id, last_used(sort: Desc)])
-}
-
-// NUEVO: Audit Log System (PLAN.md 2.1)
-// Tracks all critical changes in the system for compliance and debugging
 enum audit_action {
   CREATE
   UPDATE
@@ -178,52 +206,3 @@ enum audit_action {
   EXPORT
   IMPORT
 }
-
-model audit_log {
-  id            Int          @id @default(autoincrement())
-  user_id       Int
-  company_id    Int
-  action        audit_action
-  entity_type   String       // "shift", "employee", "role", etc.
-  entity_id     Int?         // ID of the affected entity
-  old_values    Json?        // Previous state (for UPDATE/DELETE)
-  new_values    Json?        // New state (for CREATE/UPDATE)
-  ip_address    String?      @db.VarChar(45) // IPv4 or IPv6
-  user_agent    String?
-  created_at    DateTime     @default(now())
-
-  user    user    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  company company @relation(fields: [company_id], references: [id], onDelete: Cascade)
-
-  // Indexes for efficient queries (PLAN.md 2.1)
-  @@index([company_id, created_at(sort: Desc)], name: "idx_audit_company_date")
-  @@index([user_id, created_at(sort: Desc)], name: "idx_audit_user_date")
-  @@index([entity_type, entity_id], name: "idx_audit_entity")
-  @@index([action, created_at(sort: Desc)], name: "idx_audit_action_date")
-}
-
-// Company Settings - Per-company configuration (PLAN.md 5.1)
-// Allows each company to customize business rules, work hours limits, and timezone preferences
-model company_settings {
-  id                    Int      @id @default(autoincrement())
-  company_id            Int      @unique
-
-  // Work hours limits
-  max_daily_hours       Decimal  @default(12.0) @db.Decimal(4, 1) // Maximum hours per day (e.g., 12.0)
-  max_weekly_hours      Decimal  @default(40.0) @db.Decimal(5, 1) // Maximum hours per week (e.g., 40.0)
-  min_break_hours       Decimal  @default(11.0) @db.Decimal(4, 1) // Minimum hours between shifts (e.g., 11.0)
-
-  // Shift configuration
-  allow_overnight_shifts Boolean  @default(false) // Whether shifts can span midnight
-  timezone              String   @default("UTC") @db.VarChar(50) // Company timezone (IANA format, e.g., "America/New_York")
-
-  // Metadata
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
-
-  company company @relation(fields: [company_id], references: [id], onDelete: Cascade)
-
-  @@index([company_id], name: "idx_company_settings_company")
-}
-
-
