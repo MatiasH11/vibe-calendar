@@ -85,6 +85,44 @@ export const auth_service = {
           },
         });
 
+        // 5. Create audit logs for registration
+        await tx.audit_log.createMany({
+          data: [
+            {
+              user_id: user.id,
+              company_id: company.id,
+              action: 'CREATE',
+              entity_type: 'company',
+              entity_id: company.id,
+              new_values: { name: company.name, email: company.email },
+            },
+            {
+              user_id: user.id,
+              company_id: company.id,
+              action: 'CREATE',
+              entity_type: 'user',
+              entity_id: user.id,
+              new_values: { email: user.email, first_name: user.first_name, last_name: user.last_name },
+            },
+            {
+              user_id: user.id,
+              company_id: company.id,
+              action: 'CREATE',
+              entity_type: 'department',
+              entity_id: managementDepartment.id,
+              new_values: { name: managementDepartment.name },
+            },
+            {
+              user_id: user.id,
+              company_id: company.id,
+              action: 'CREATE',
+              entity_type: 'employee',
+              entity_id: employee.id,
+              new_values: { company_role: employee.company_role, position: employee.position },
+            },
+          ],
+        });
+
         return { company, user, department: managementDepartment, employee };
       });
 
@@ -151,6 +189,18 @@ export const auth_service = {
     // Generate JWT token
     const token = jwt.sign(payload, env.JWT_SECRET, {
       expiresIn: AUTH_CONSTANTS.JWT_EXPIRATION,
+    });
+
+    // Create audit log for login
+    await prisma.audit_log.create({
+      data: {
+        user_id: user.id,
+        company_id: employee.company_id,
+        action: 'LOGIN',
+        entity_type: 'user',
+        entity_id: user.id,
+        new_values: { email: user.email },
+      },
     });
 
     return {

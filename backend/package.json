@@ -13,6 +13,7 @@
     "prisma:studio": "prisma studio",
     "db:studio": "prisma studio",
     "docs:postman": "node scripts/generate-postman-collection.js",
+    "generate:crud": "node scripts/generate-crud.js",
     "postinstall": "tsc && prisma generate"
   },
   "dependencies": {
