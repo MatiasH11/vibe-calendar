@@ -4,6 +4,7 @@ import { env } from './config/environment';
 import { prisma } from './config/prisma_client';
 import { HTTP_CODES } from './constants/http_codes';
 import { error_handler } from './middlewares/error_handler';
+import { swaggerUIMiddleware } from './config/swagger';
 import authRouter from './routes/auth.routes';
 import auditRouter from './routes/audit.routes';
 
@@ -40,6 +41,9 @@ app.get('/api/v1/health', async (req: Request, res: Response) => {
   const statusCode = dbStatus === 'up' ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR;
   res.status(statusCode).json(healthCheck);
 });
+
+// Swagger API Documentation
+app.use('/api/docs', ...swaggerUIMiddleware);
 
 // Register application routes
 app.use('/api/v1/auth', authRouter);

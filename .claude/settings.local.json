@@ -9,7 +9,9 @@
       "Bash(npm run prisma:migrate:*)",
       "Bash(npx prisma:*)",
       "Bash(git checkout:*)",
-      "Bash(npm run prisma:generate:*)"
+      "Bash(npm run prisma:generate:*)",
+      "Bash(cat:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
