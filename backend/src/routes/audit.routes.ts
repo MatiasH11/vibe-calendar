@@ -5,7 +5,6 @@
 
 import { Router } from 'express';
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { adminMiddleware } from '../middlewares/admin.middleware';
 import { validate_query, validate_params } from '../middlewares/validation_middleware';
 import {
   audit_query_schema,
@@ -75,7 +74,6 @@ const router = Router();
 router.get(
   '/',
   authMiddleware,
-  adminMiddleware,
   validate_query(audit_query_schema),
   getAuditLogsHandler as any
 );
@@ -115,7 +113,6 @@ router.get(
 router.get(
   '/entity/:type/:id',
   authMiddleware,
-  adminMiddleware,
   validate_params(entity_history_params_schema),
   getEntityHistoryHandler as any
 );
@@ -145,7 +142,6 @@ router.get(
 router.get(
   '/recent',
   authMiddleware,
-  adminMiddleware,
   getRecentAuditLogsHandler
 );
 
@@ -181,7 +177,6 @@ router.get(
 router.get(
   '/statistics',
   authMiddleware,
-  adminMiddleware,
   validate_query(audit_statistics_query_schema),
   getAuditStatisticsHandler
 );
