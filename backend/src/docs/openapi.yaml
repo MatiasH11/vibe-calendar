@@ -12,12 +12,18 @@ info:
     - 📊 Pattern learning for smart shift suggestions
     - 📋 Reusable shift templates
     - 🎯 Role-based access control
+    - 📝 Comprehensive audit logging
 
     ## Base URL
     All API endpoints are prefixed with `/api/v1`
 
     ## Authentication
     Most endpoints require authentication via JWT Bearer token. Obtain a token by logging in via `/auth/login`.
+
+    Include the token in requests as:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
 
     ## Rate Limiting
     - **Auth endpoints**: 5 requests / 15 minutes
@@ -26,6 +32,8 @@ info:
 
     ## Response Format
     All responses follow a standard format:
+
+    **Success Response:**
     ```json
     {
       "success": true,
@@ -33,15 +41,52 @@ info:
     }
     ```
 
-    Or in case of error:
+    **Error Response:**
     ```json
     {
       "success": false,
       "error": {
-        "error_code": "ERROR_CODE",
-        "message": "Human-readable message"
+        "code": "ERROR_CODE",
+        "message": "Human-readable message",
+        "metadata": { ... }
       }
     }
+    ```
+
+    ## Time Handling - UTC ONLY
+    - All time values are in **UTC format** (HH:mm, e.g., "14:30")
+    - Frontend is responsible for timezone conversions
+    - Backend NEVER performs timezone conversions
+    - Dates are in ISO 8601 format (YYYY-MM-DD)
+
+    ## Common Use Cases
+
+    ### 1. Creating a New Company and Admin
+    ```
+    POST /auth/register
+    → Returns JWT token
+    → Use token for all subsequent requests
+    ```
+
+    ### 2. Adding Employees to Shifts
+    ```
+    1. POST /employees (create employee)
+    2. POST /roles (optional: create custom role)
+    3. POST /shifts (assign shift to employee)
+    ```
+
+    ### 3. Bulk Shift Management
+    ```
+    1. POST /shifts/validate-conflicts (check for conflicts)
+    2. POST /shifts/bulk-create (create multiple shifts)
+    3. DELETE /shifts/bulk (delete multiple shifts)
+    ```
+
+    ### 4. Using Shift Templates
+    ```
+    1. POST /shift-templates (create reusable template)
+    2. GET /shifts/suggestions (get AI-powered suggestions)
+    3. POST /shifts (use template to create shift)
     ```
 
   contact:
@@ -68,6 +113,10 @@ tags:
     description: Shift scheduling and management
   - name: Shift Templates
     description: Reusable shift templates
+  - name: Company Settings
+    description: Company-wide configuration settings
+  - name: Audit
+    description: Audit log queries and analytics
   - name: Statistics
     description: Dashboard statistics and analytics
   - name: Health
@@ -88,12 +137,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthCheckResponse'
+              examples:
+                healthy:
+                  summary: System is healthy
+                  value:
+                    status: ok
+                    timestamp: "2025-10-18T12:00:00Z"
+                    uptime: 86400
+                    services:
+                      api: up
+                      database: up
+                    memory:
+                      used: 150
+                      total: 512
+                      unit: "MB"
         '500':
           description: System is degraded
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthCheckResponse'
+              examples:
+                degraded:
+                  summary: Database connection failed
+                  value:
+                    status: degraded
+                    timestamp: "2025-10-18T12:00:00Z"
+                    uptime: 3600
+                    services:
+                      api: up
+                      database: down
 
   # Auth Endpoints
   /auth/register:
@@ -105,6 +178,12 @@ paths:
         This is the initial registration endpoint for new organizations.
 
         **Rate Limit:** 5 requests / 15 minutes
+
+        **Common Errors:**
+        - `EMAIL_ALREADY_EXISTS` (409) - Email is already registered
+        - `COMPANY_NAME_ALREADY_EXISTS` (409) - Company name is taken
+        - `VALIDATION_ERROR` (400) - Invalid input data
+        - `TRANSACTION_FAILED` (500) - Database error during registration
       operationId: registerCompany
       requestBody:
         required: true
@@ -121,6 +200,14 @@ paths:
                   last_name: "Doe"
                   email: "john@acme.com"
                   password: "SecurePass123!"
+              restaurant:
+                summary: Restaurant registration
+                value:
+                  company_name: "Pizza Palace"
+                  first_name: "Maria"
+                  last_name: "Garcia"
+                  email: "maria@pizzapalace.com"
+                  password: "MySecurePassword2025!"
       responses:
         '201':
           description: Company and admin user created successfully
@@ -128,19 +215,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RegisterResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      company_id: 1
+                      user_id: 1
+                      employee_id: 1
+                      role_id: 1
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '409':
-          description: Email already exists
+          description: Conflict - Email or company name already exists
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                error:
-                  error_code: "EMAIL_ALREADY_EXISTS"
-                  message: "A user with this email already exists"
+              examples:
+                email_exists:
+                  summary: Email already registered
+                  value:
+                    success: false
+                    error:
+                      code: "EMAIL_ALREADY_EXISTS"
+                      message: "A user with this email already exists"
+                      metadata:
+                        email: "john@acme.com"
+                company_exists:
+                  summary: Company name taken
+                  value:
+                    success: false
+                    error:
+                      code: "COMPANY_NAME_ALREADY_EXISTS"
+                      message: "A company with this name already exists"
+                      metadata:
+                        companyName: "Acme Corp"
         '429':
           $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /auth/login:
     post:
@@ -150,7 +264,13 @@ paths:
         Authenticate a user and receive a JWT token for subsequent requests.
         The token should be included in the `Authorization` header as `Bearer <token>`.
 
+        **Token Validity:** 8 hours
         **Rate Limit:** 5 requests / 15 minutes
+
+        **Common Errors:**
+        - `INVALID_CREDENTIALS` (401) - Wrong email or password
+        - `USER_NOT_ASSOCIATED_WITH_COMPANY` (403) - User has no company
+        - `VALIDATION_ERROR` (400) - Invalid email format or missing fields
       operationId: login
       requestBody:
         required: true
@@ -164,6 +284,11 @@ paths:
                 value:
                   email: "admin@company.com"
                   password: "SecurePass123!"
+              employee:
+                summary: Employee login
+                value:
+                  email: "employee@company.com"
+                  password: "Password123!"
       responses:
         '200':
           description: Login successful
@@ -171,17 +296,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJhZG1pbl9jb21wYW55X2lkIjoxLCJ1c2VyX3R5cGUiOiJhZG1pbiJ9.SIGNATURE"
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           description: Invalid credentials
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                error:
-                  error_code: "INVALID_CREDENTIALS"
-                  message: "Invalid email or password"
+              examples:
+                invalid_credentials:
+                  summary: Wrong email or password
+                  value:
+                    success: false
+                    error:
+                      code: "INVALID_CREDENTIALS"
+                      message: "Invalid email or password"
+        '403':
+          description: User not associated with any company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                no_company:
+                  summary: User has no company association
+                  value:
+                    success: false
+                    error:
+                      code: "USER_NOT_ASSOCIATED_WITH_COMPANY"
+                      message: "User is not associated with any company"
+                      metadata:
+                        userId: 5
         '429':
           $ref: '#/components/responses/RateLimitExceeded'
 
@@ -199,8 +351,16 @@ components:
         Authorization: Bearer <your-jwt-token>
         ```
 
+        Token payload includes:
+        - `user_id`: User's ID
+        - `admin_company_id`: Company ID the user belongs to
+        - `user_type`: "admin" or "employee"
+
   schemas:
-    # Standard Response Wrapper
+    # ============================================
+    # STANDARD RESPONSE WRAPPERS
+    # ============================================
+
     SuccessResponse:
       type: object
       required: [success, data]
@@ -208,6 +368,7 @@ components:
         success:
           type: boolean
           example: true
+          description: Always true for successful responses
         data:
           type: object
           description: Response payload (structure varies by endpoint)
@@ -219,23 +380,101 @@ components:
         success:
           type: boolean
           example: false
+          description: Always false for error responses
         error:
           type: object
-          required: [error_code, message]
+          required: [code, message]
           properties:
-            error_code:
+            code:
               type: string
-              description: Machine-readable error code
+              description: Machine-readable error code for programmatic handling
               example: "VALIDATION_ERROR"
+              enum:
+                # Authentication Errors
+                - EMAIL_ALREADY_EXISTS
+                - COMPANY_NAME_ALREADY_EXISTS
+                - INVALID_CREDENTIALS
+                - USER_NOT_ASSOCIATED_WITH_COMPANY
+                - TRANSACTION_FAILED
+                - UNAUTHORIZED
+                - FORBIDDEN
+                # Employee Errors
+                - UNAUTHORIZED_COMPANY_ACCESS
+                - UNAUTHORIZED_EMPLOYEE_ACCESS
+                - EMPLOYEE_NOT_FOUND
+                - EMPLOYEE_ALREADY_EXISTS
+                # Shift Errors
+                - INVALID_TIME_FORMAT
+                - INVALID_START_TIME_FORMAT
+                - INVALID_END_TIME_FORMAT
+                - OVERNIGHT_NOT_ALLOWED
+                - SHIFT_OVERLAP
+                - UNAUTHORIZED_SHIFT_ACCESS
+                - DUPLICATION_CONFLICTS_DETECTED
+                - BULK_CREATION_CONFLICTS_DETECTED
+                - SHIFT_DUPLICATE_EXACT
+                # Role Errors
+                - DUPLICATE_ROLE
+                - ROLE_NOT_FOUND
+                - ROLE_HAS_EMPLOYEES
+                # Template Errors
+                - DUPLICATE_TEMPLATE_NAME
+                - TEMPLATE_NOT_FOUND
+                # Database Errors
+                - UNIQUE_CONSTRAINT_VIOLATION
+                - FOREIGN_KEY_CONSTRAINT
+                - RECORD_NOT_FOUND
+                - DATABASE_VALIDATION_ERROR
+                # General Errors
+                - VALIDATION_ERROR
+                - NOT_FOUND
+                - TOO_MANY_REQUESTS
+                - INTERNAL_SERVER_ERROR
             message:
               type: string
-              description: Human-readable error message
+              description: Human-readable error message for display to users
               example: "Invalid request data"
-            details:
+            metadata:
               type: object
-              description: Additional error details (optional)
+              description: Additional context about the error (optional)
+              additionalProperties: true
+              example:
+                field: "email"
+                value: "invalid-email"
 
-    # Health Check
+    PaginationMeta:
+      type: object
+      required: [total, page, limit, totalPages, hasNext, hasPrev]
+      properties:
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 150
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+          example: 1
+        limit:
+          type: integer
+          description: Items per page
+          example: 50
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 3
+        hasNext:
+          type: boolean
+          description: Whether there is a next page
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there is a previous page
+          example: false
+
+    # ============================================
+    # HEALTH CHECK
+    # ============================================
+
     HealthCheckResponse:
       type: object
       required: [status, timestamp, services]
@@ -244,13 +483,16 @@ components:
           type: string
           enum: [ok, degraded]
           description: Overall system status
+          example: ok
         timestamp:
           type: string
           format: date-time
           description: ISO 8601 timestamp
+          example: "2025-10-18T12:00:00Z"
         uptime:
           type: integer
           description: Server uptime in seconds
+          example: 86400
         services:
           type: object
           required: [api, database]
@@ -258,23 +500,30 @@ components:
             api:
               type: string
               enum: [up, down]
+              example: up
             database:
               type: string
               enum: [up, down]
+              example: up
         memory:
           type: object
           properties:
             used:
               type: integer
               description: Heap memory used in MB
+              example: 150
             total:
               type: integer
               description: Total heap memory in MB
+              example: 512
             unit:
               type: string
               example: "MB"
 
-    # Auth Schemas
+    # ============================================
+    # AUTH SCHEMAS
+    # ============================================
+
     RegisterRequest:
       type: object
       required: [company_name, first_name, last_name, email, password]
@@ -305,7 +554,7 @@ components:
         password:
           type: string
           minLength: 8
-          description: Strong password (min 8 characters)
+          description: Strong password (minimum 8 characters)
           example: "SecurePass123!"
 
     RegisterResponse:
@@ -320,15 +569,19 @@ components:
                 company_id:
                   type: integer
                   description: ID of the created company
+                  example: 1
                 user_id:
                   type: integer
                   description: ID of the created admin user
+                  example: 1
                 employee_id:
                   type: integer
                   description: ID of the company-employee relationship
+                  example: 1
                 role_id:
                   type: integer
                   description: ID of the default admin role
+                  example: 1
 
     LoginRequest:
       type: object
@@ -356,20 +609,29 @@ components:
                 token:
                   type: string
                   description: JWT token (valid for 8 hours)
-                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJhZG1pbl9jb21wYW55X2lkIjoxLCJ1c2VyX3R5cGUiOiJhZG1pbiJ9.SIGNATURE"
+
+  # ============================================
+  # REUSABLE RESPONSES
+  # ============================================
 
   responses:
     RateLimitExceeded:
-      description: Too many requests
+      description: Too many requests - Rate limit exceeded
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              error_code: "TOO_MANY_REQUESTS"
-              message: "Too many requests. Please slow down."
+          examples:
+            rate_limit:
+              summary: Rate limit exceeded
+              value:
+                success: false
+                error:
+                  code: "TOO_MANY_REQUESTS"
+                  message: "Too many requests. Please slow down."
+                  metadata:
+                    retryAfter: 900
 
     Unauthorized:
       description: Authentication required or invalid token
@@ -377,23 +639,47 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              error_code: "UNAUTHORIZED"
-              message: "Authentication required"
+          examples:
+            missing_token:
+              summary: No authentication token provided
+              value:
+                success: false
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Authentication required"
+            invalid_token:
+              summary: Invalid or expired JWT token
+              value:
+                success: false
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Invalid or expired token"
 
     Forbidden:
-      description: Insufficient permissions
+      description: Insufficient permissions to access this resource
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              error_code: "FORBIDDEN"
-              message: "You don't have permission to perform this action"
+          examples:
+            admin_only:
+              summary: Admin privileges required
+              value:
+                success: false
+                error:
+                  code: "FORBIDDEN"
+                  message: "You don't have permission to perform this action"
+            wrong_company:
+              summary: Resource belongs to different company
+              value:
+                success: false
+                error:
+                  code: "UNAUTHORIZED_COMPANY_ACCESS"
+                  message: "Resource does not belong to your company"
+                  metadata:
+                    resourceType: "shift"
+                    resourceId: 123
+                    companyId: 1
 
     NotFound:
       description: Resource not found
@@ -401,11 +687,131 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              error_code: "NOT_FOUND"
-              message: "Resource not found"
+          examples:
+            generic:
+              summary: Generic not found
+              value:
+                success: false
+                error:
+                  code: "NOT_FOUND"
+                  message: "Resource not found"
+            employee:
+              summary: Employee not found
+              value:
+                success: false
+                error:
+                  code: "EMPLOYEE_NOT_FOUND"
+                  message: "Employee not found"
+                  metadata:
+                    employeeId: 999
+            role:
+              summary: Role not found
+              value:
+                success: false
+                error:
+                  code: "ROLE_NOT_FOUND"
+                  message: "Role not found"
+                  metadata:
+                    roleId: 999
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_fields:
+              summary: Required fields missing
+              value:
+                success: false
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Invalid request data"
+                  metadata:
+                    issues:
+                      - path: ["email"]
+                        message: "Required"
+                      - path: ["password"]
+                        message: "Required"
+            invalid_format:
+              summary: Invalid field format
+              value:
+                success: false
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Invalid request data"
+                  metadata:
+                    issues:
+                      - path: ["start_time"]
+                        message: "Invalid time format. Expected HH:mm"
+                        received: "25:00"
+
+    ConflictError:
+      description: Request conflicts with existing data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            shift_overlap:
+              summary: Shift overlaps with existing shift
+              value:
+                success: false
+                error:
+                  code: "SHIFT_OVERLAP"
+                  message: "Shift overlaps with an existing shift"
+                  metadata:
+                    employeeId: 5
+                    date: "2025-08-25"
+                    existingShift:
+                      id: 42
+                      start_time: "09:00"
+                      end_time: "17:00"
+            duplicate_role:
+              summary: Role name already exists
+              value:
+                success: false
+                error:
+                  code: "DUPLICATE_ROLE"
+                  message: "A role with this name already exists in your company"
+                  metadata:
+                    roleName: "Manager"
+                    companyId: 1
+            role_has_employees:
+              summary: Cannot delete role with employees
+              value:
+                success: false
+                error:
+                  code: "ROLE_HAS_EMPLOYEES"
+                  message: "Cannot delete role because it has employees assigned to it"
+                  metadata:
+                    roleId: 2
+                    employeeCount: 15
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            generic:
+              summary: Unexpected error
+              value:
+                success: false
+                error:
+                  code: "INTERNAL_SERVER_ERROR"
+                  message: "An unexpected error occurred"
+            transaction_failed:
+              summary: Database transaction failed
+              value:
+                success: false
+                error:
+                  code: "TRANSACTION_FAILED"
+                  message: "Database transaction failed"
+                  metadata:
+                    context: "user registration"
 
 security:
   - bearerAuth: []

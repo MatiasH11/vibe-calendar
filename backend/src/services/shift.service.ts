@@ -12,6 +12,8 @@ import {
 } from '../utils/time.utils';
 // NEW: Company settings service for configurable business rules (PLAN.md 5.2)
 import { company_settings_service } from './company-settings.service';
+// Repository for bulk operations (PLAN.md 11.1)
+import { shiftRepository } from '../repositories/shift.repository';
 // Error classes
 import {
   UnauthorizedCompanyAccessError,
@@ -1308,6 +1310,15 @@ export const shift_service = {
       },
     });
   },
+
+  async bulkDelete(shiftIds: number[], companyId: number) {
+    try {
+        return await shiftRepository.bulkSoftDelete(shiftIds, companyId);
+    } catch (error: any) {
+        if (error.message === 'UNAUTHORIZED_OR_INVALID_IDS') {
+            throw new UnauthorizedShiftAccessError(shiftIds[0], companyId);
+        }
+        throw error;
+    }
+  },
 };
-
-

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { create_shift_body, get_shifts_query, update_shift_body, duplicate_shift_body, bulk_create_shifts_body, validate_conflicts_body, get_employee_patterns_query, get_suggestions_query } from '../validations/shift.validation';
+import { create_shift_body, get_shifts_query, update_shift_body, duplicate_shift_body, bulk_create_shifts_body, validate_conflicts_body, get_employee_patterns_query, get_suggestions_query, BulkDeleteShiftsBody } from '../validations/shift.validation';
 import { shift_service } from '../services/shift.service';
 import { HTTP_CODES } from '../constants/http_codes';
 
@@ -154,6 +154,27 @@ export const get_suggestions_handler = async (
     };
     const suggestions = await shift_service.getSuggestions(query, admin_company_id);
     return res.status(HTTP_CODES.OK).json({ success: true, data: suggestions });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeleteShiftsHandler = async (
+  req: Request<{}, {}, BulkDeleteShiftsBody>,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { shift_ids } = req.body;
+    const company_id = req.user!.company_id;
+    
+    const result = await shift_service.bulkDelete(shift_ids, company_id);
+    
+    return res.status(HTTP_CODES.OK).json({
+      success: true,
+      message: `${result.count} shifts deleted successfully.`,
+      data: result,
+    });
   } catch (error) {
     next(error);
   }

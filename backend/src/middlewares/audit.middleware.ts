@@ -108,7 +108,7 @@ export const auditMiddleware = (entity_type: string) => {
         setImmediate(async () => {
           try {
             const user_id = req.user!.user_id;
-            const company_id = req.user!.admin_company_id;
+            const company_id = req.user!.company_id;
             const ip_address = getIpAddress(req);
             const user_agent = getUserAgent(req);
 
@@ -198,7 +198,7 @@ export const captureOldValues = (
       }
 
       const id = parseInt(req.params.id, 10);
-      const company_id = req.user.admin_company_id;
+      const company_id = req.user.company_id;
 
       // Fetch current state
       const oldEntity = await fetchFunction(id, company_id);
@@ -242,7 +242,7 @@ export const auditAuthMiddleware = (action: 'LOGIN' | 'LOGOUT') => {
             const company_id =
               action === 'LOGIN'
                 ? data.data?.company_id
-                : req.user?.admin_company_id;
+                : req.user?.company_id;
 
             if (user_id && company_id) {
               const ip_address = getIpAddress(req);

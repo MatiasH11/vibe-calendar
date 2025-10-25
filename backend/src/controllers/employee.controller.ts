@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AddEmployeeBody, EmployeeFiltersQuery, UpdateEmployeeBody } from '../validations/employee.validation';
+import { AddEmployeeBody, EmployeeFiltersQuery, UpdateEmployeeBody, BulkUpdateEmployeesBody } from '../validations/employee.validation';
 import { employee_service } from '../services/employee.service';
 import { HTTP_CODES } from '../constants/http_codes';
 
@@ -160,7 +160,7 @@ export const deleteEmployeeHandler = async (
   try {
     const company_id = req.user!.company_id;
     const id = parseInt(req.params.id);
-    
+
     if (isNaN(id)) {
       return res.status(HTTP_CODES.BAD_REQUEST).json({
         success: false,
@@ -169,9 +169,9 @@ export const deleteEmployeeHandler = async (
     }
 
     await employee_service.softDelete(id, company_id);
-    return res.status(HTTP_CODES.OK).json({ 
-      success: true, 
-      message: 'Employee deleted successfully' 
+    return res.status(HTTP_CODES.OK).json({
+      success: true,
+      message: 'Employee deleted successfully'
     });
   } catch (error: any) {
     if (error?.message === 'EMPLOYEE_NOT_FOUND') {
@@ -184,4 +184,70 @@ export const deleteEmployeeHandler = async (
   }
 };
 
+// NUEVO: Bulk update employees (activate/deactivate/change role)
+export const bulkUpdateEmployeesHandler = async (
+  req: Request<{}, {}, BulkUpdateEmployeesBody>,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { employee_ids, action, role_id } = req.body;
+    const company_id = req.user!.company_id;
 
+    const result = await employee_service.bulkUpdate(
+      employee_ids,
+      action,
+      company_id,
+      role_id
+    );
+
+    // Generate appropriate success message based on action
+    let message = '';
+    switch (action) {
+      case 'activate':
+        message = `${result.count} employee(s) activated successfully.`;
+        break;
+      case 'deactivate':
+        message = `${result.count} employee(s) deactivated successfully.`;
+        break;
+      case 'change_role':
+        message = `${result.count} employee(s) role changed successfully.`;
+        break;
+    }
+
+    return res.status(HTTP_CODES.OK).json({
+      success: true,
+      message,
+      data: result,
+    });
+  } catch (error: any) {
+    if (error?.message === 'UNAUTHORIZED_COMPANY_ACCESS') {
+      return res.status(HTTP_CODES.FORBIDDEN).json({
+        success: false,
+        error: {
+          error_code: 'UNAUTHORIZED_COMPANY_ACCESS',
+          message: 'Role does not belong to your company'
+        }
+      });
+    }
+    if (error?.message === 'ROLE_ID_REQUIRED') {
+      return res.status(HTTP_CODES.BAD_REQUEST).json({
+        success: false,
+        error: {
+          error_code: 'ROLE_ID_REQUIRED',
+          message: 'role_id is required when action is change_role'
+        }
+      });
+    }
+    if (error?.message === 'INVALID_ACTION') {
+      return res.status(HTTP_CODES.BAD_REQUEST).json({
+        success: false,
+        error: {
+          error_code: 'INVALID_ACTION',
+          message: 'Invalid action. Must be activate, deactivate, or change_role'
+        }
+      });
+    }
+    next(error);
+  }
+};

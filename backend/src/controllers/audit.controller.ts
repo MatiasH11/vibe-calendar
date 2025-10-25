@@ -24,7 +24,7 @@ export const getAuditLogsHandler = async (
   next: NextFunction
 ) => {
   try {
-    const company_id = req.user!.admin_company_id;
+    const company_id = req.user!.company_id;
 
     // Build filter object
     const filters = {
@@ -61,7 +61,7 @@ export const getEntityHistoryHandler = async (
   next: NextFunction
 ) => {
   try {
-    const company_id = req.user!.admin_company_id;
+    const company_id = req.user!.company_id;
     const { type, id } = req.params;
 
     const history = await audit_service.getEntityHistory(type, id, company_id);
@@ -80,17 +80,13 @@ export const getEntityHistoryHandler = async (
   }
 };
 
-/**
- * GET /api/v1/audit/recent
- * Get recent audit logs for dashboard widget
- */
 export const getRecentAuditLogsHandler = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const company_id = req.user!.admin_company_id;
+    const company_id = req.user!.company_id;
     const limit = req.query.limit
       ? Math.min(parseInt(req.query.limit as string, 10), 50)
       : 10;
@@ -116,7 +112,7 @@ export const getAuditStatisticsHandler = async (
   next: NextFunction
 ) => {
   try {
-    const company_id = req.user!.admin_company_id;
+    const company_id = req.user!.company_id;
     const { start_date, end_date } = req.query;
 
     const stats = await audit_service.getStatistics(

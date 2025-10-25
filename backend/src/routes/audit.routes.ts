@@ -77,7 +77,7 @@ router.get(
   authMiddleware,
   adminMiddleware,
   validate_query(audit_query_schema),
-  getAuditLogsHandler
+  getAuditLogsHandler as any
 );
 
 /**
@@ -117,7 +117,7 @@ router.get(
   authMiddleware,
   adminMiddleware,
   validate_params(entity_history_params_schema),
-  getEntityHistoryHandler
+  getEntityHistoryHandler as any
 );
 
 /**

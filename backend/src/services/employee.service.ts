@@ -317,6 +317,53 @@ export const employee_service = {
     return { success: true };
   },
 
+  // NUEVO: Bulk update employees (activate/deactivate/change role)
+  async bulkUpdate(
+    employee_ids: number[],
+    action: 'activate' | 'deactivate' | 'change_role',
+    company_id: number,
+    role_id?: number
+  ) {
+    // Validate role if changing role
+    if (action === 'change_role') {
+      if (!role_id) {
+        throw new Error('ROLE_ID_REQUIRED');
+      }
+
+      const role = await prisma.role.findFirst({
+        where: { id: role_id, company_id }
+      });
+
+      if (!role) {
+        throw new Error('UNAUTHORIZED_COMPANY_ACCESS');
+      }
+    }
+
+    // Import repository
+    const { employeeRepository } = await import('../repositories/employee.repository');
+
+    let result: { count: number };
+
+    switch (action) {
+      case 'activate':
+        result = await employeeRepository.bulkUpdateActiveStatus(employee_ids, true, company_id);
+        break;
+      case 'deactivate':
+        result = await employeeRepository.bulkUpdateActiveStatus(employee_ids, false, company_id);
+        break;
+      case 'change_role':
+        result = await employeeRepository.bulkUpdateRole(employee_ids, role_id!, company_id);
+        break;
+      default:
+        throw new Error('INVALID_ACTION');
+    }
+
+    // Invalidate cache
+    CacheHelper.invalidateEmployeeCache(company_id);
+
+    return result;
+  },
+
   // NUEVO: Método específico para vista de turnos (optimizado - single query)
   async findByCompanyForShifts(company_id: number, options: { start_date?: string; end_date?: string; week_start?: string; week_end?: string }) {
     // Mantener compatibilidad con parámetros antiguos
@@ -449,5 +496,3 @@ export const employee_service = {
     };
   },
 };
-
-

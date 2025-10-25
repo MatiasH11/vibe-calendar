@@ -1,124 +1,85 @@
 import { z } from 'zod';
 
-/**
- * UTC Time Regex - HH:mm format (PLAN.md 4.3)
- * Backend ONLY accepts UTC times. No timezone information allowed.
- * Valid: "09:00", "14:30", "23:59"
- * Invalid: "9:00" (missing leading zero), "14:30:00" (with seconds), "14:30+00:00" (with timezone)
- */
-const utcTimeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm 00-23:00-59
-
 export const create_shift_schema = z.object({
-  company_employee_id: z.number().int(),
-  shift_date: z.string().min(1),
-  start_time: z.string()
-    .regex(utcTimeRegex, { message: 'start_time must be UTC time in HH:mm format (e.g., "14:30")' })
-    .refine((time) => !time.includes('+') && !time.includes('Z'), {
-      message: 'start_time must NOT include timezone information. Send UTC time only.',
-    }),
-  end_time: z.string()
-    .regex(utcTimeRegex, { message: 'end_time must be UTC time in HH:mm format (e.g., "17:00")' })
-    .refine((time) => !time.includes('+') && !time.includes('Z'), {
-      message: 'end_time must NOT include timezone information. Send UTC time only.',
-    }),
-  notes: z.string().optional(),
-}).refine(
-  (data) => data.end_time > data.start_time,
-  { message: 'end_time must be after start_time (overnight shifts not allowed)', path: ['end_time'] }
-);
-
-export const update_shift_schema = z.object({
-  company_employee_id: z.number().int().optional(),
-  shift_date: z.string().optional(),
-  start_time: z.string()
-    .regex(utcTimeRegex, { message: 'start_time must be UTC time in HH:mm format' })
-    .refine((time) => !time.includes('+') && !time.includes('Z'), {
-      message: 'start_time must NOT include timezone information. Send UTC time only.',
-    })
-    .optional(),
-  end_time: z.string()
-    .regex(utcTimeRegex, { message: 'end_time must be UTC time in HH:mm format' })
-    .refine((time) => !time.includes('+') && !time.includes('Z'), {
-      message: 'end_time must NOT include timezone information. Send UTC time only.',
-    })
-    .optional(),
+  company_employee_id: z.number(),
+  shift_date: z.string(),
+  start_time: z.string(),
+  end_time: z.string(),
   notes: z.string().optional(),
 });
+
+export type create_shift_body = z.infer<typeof create_shift_schema>;
 
 export const get_shifts_schema = z.object({
   start_date: z.string().optional(),
   end_date: z.string().optional(),
 });
 
-// Duplication schemas
-export const duplicate_shift_schema = z.object({
-  source_shift_ids: z.array(z.number().int()).min(1).max(50),
-  target_dates: z.array(z.string().min(1)).optional(),
-  target_employee_ids: z.array(z.number().int()).optional(),
-  preserve_employee: z.boolean().default(false),
-  preserve_date: z.boolean().default(false),
-  conflict_resolution: z.enum(['skip', 'overwrite', 'fail']).default('fail'),
-  notes_suffix: z.string().optional(),
-}).refine(
-  (data) => data.target_dates || data.target_employee_ids,
-  { message: "Either target_dates or target_employee_ids must be provided" }
-).refine(
-  (data) => !(data.preserve_employee && data.target_employee_ids),
-  { message: "Cannot specify target_employee_ids when preserve_employee is true" }
-).refine(
-  (data) => !(data.preserve_date && data.target_dates),
-  { message: "Cannot specify target_dates when preserve_date is true" }
-);
+export type get_shifts_query = z.infer<typeof get_shifts_schema>;
 
-// Bulk creation schemas
-export const bulk_create_shifts_schema = z.object({
-  employee_ids: z.array(z.number().int()).min(1).max(50),
-  dates: z.array(z.string().min(1)).min(1).max(31),
-  start_time: z.string()
-    .regex(utcTimeRegex, { message: 'start_time must be UTC time in HH:mm format' })
-    .refine((time) => !time.includes('+') && !time.includes('Z'), {
-      message: 'start_time must NOT include timezone information. Send UTC time only.',
-    }),
-  end_time: z.string()
-    .regex(utcTimeRegex, { message: 'end_time must be UTC time in HH:mm format' })
-    .refine((time) => !time.includes('+') && !time.includes('Z'), {
-      message: 'end_time must NOT include timezone information. Send UTC time only.',
-    }),
+export const update_shift_schema = z.object({
+  shift_date: z.string().optional(),
+  start_time: z.string().optional(),
+  end_time: z.string().optional(),
   notes: z.string().optional(),
-  template_id: z.number().int().optional(),
-  conflict_resolution: z.enum(['skip', 'overwrite', 'fail']).default('fail'),
-  preview_only: z.boolean().default(false),
 });
 
-// Conflict validation schema
+export type update_shift_body = z.infer<typeof update_shift_schema>;
+
+export const duplicate_shift_schema = z.object({
+  source_shift_ids: z.array(z.number()),
+  target_employee_ids: z.array(z.number()).optional(),
+  target_dates: z.array(z.string()).optional(),
+  preserve_employee: z.boolean().optional(),
+  preserve_date: z.boolean().optional(),
+  notes_suffix: z.string().optional(),
+  conflict_resolution: z.enum(['fail', 'skip', 'overwrite']).default('fail'),
+});
+
+export type duplicate_shift_body = z.infer<typeof duplicate_shift_schema>;
+
+export const bulk_create_shifts_schema = z.object({
+  employee_ids: z.array(z.number()),
+  dates: z.array(z.string()),
+  template_id: z.number().optional(),
+  start_time: z.string(),
+  end_time: z.string(),
+  notes: z.string().optional(),
+  conflict_resolution: z.enum(['fail', 'skip', 'overwrite']).default('fail'),
+  preview_only: z.boolean().optional(),
+});
+
+export type bulk_create_shifts_body = z.infer<typeof bulk_create_shifts_schema>;
+
 export const validate_conflicts_schema = z.object({
   shifts: z.array(z.object({
-    company_employee_id: z.number().int(),
-    shift_date: z.string().min(1),
-    start_time: z.string().regex(utcTimeRegex, { message: 'start_time must be HH:mm' }),
-    end_time: z.string().regex(utcTimeRegex, { message: 'end_time must be HH:mm' }),
-  })).min(1).max(100),
+    company_employee_id: z.number(),
+    shift_date: z.string(),
+    start_time: z.string(),
+    end_time: z.string(),
+  })),
 });
 
-// Pattern and suggestions schemas
+export type validate_conflicts_body = z.infer<typeof validate_conflicts_schema>;
+
 export const get_employee_patterns_schema = z.object({
-  employee_id: z.string().transform(val => parseInt(val, 10)),
-  limit: z.string().transform(val => parseInt(val, 10)).optional().default('10'),
+  employee_id: z.number(),
+  limit: z.number().default(10),
 });
+
+export type get_employee_patterns_query = z.infer<typeof get_employee_patterns_schema>;
 
 export const get_suggestions_schema = z.object({
-  employee_id: z.string().transform(val => parseInt(val, 10)),
-  date: z.string().min(1).optional(),
-  limit: z.string().transform(val => parseInt(val, 10)).optional().default('5'),
+  employee_id: z.number(),
+  limit: z.number().default(5),
+  date: z.string().optional(),
 });
 
-export type create_shift_body = z.infer<typeof create_shift_schema>;
-export type update_shift_body = z.infer<typeof update_shift_schema>;
-export type get_shifts_query = z.infer<typeof get_shifts_schema>;
-export type duplicate_shift_body = z.infer<typeof duplicate_shift_schema>;
-export type bulk_create_shifts_body = z.infer<typeof bulk_create_shifts_schema>;
-export type validate_conflicts_body = z.infer<typeof validate_conflicts_schema>;
-export type get_employee_patterns_query = z.infer<typeof get_employee_patterns_schema>;
 export type get_suggestions_query = z.infer<typeof get_suggestions_schema>;
 
+export const bulk_delete_shifts_schema = z.object({
+  shift_ids: z.array(z.number().int().positive({ message: "All shift IDs must be positive integers." }))
+    .min(1, { message: "At least one shift ID is required." }),
+});
 
+export type BulkDeleteShiftsBody = z.infer<typeof bulk_delete_shifts_schema>;

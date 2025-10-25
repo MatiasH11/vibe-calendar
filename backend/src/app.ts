@@ -56,7 +56,85 @@ app.use('/api/', apiRateLimiter);
 app.use('/api/docs', ...swaggerUIMiddleware);
 app.get('/api/docs/openapi.json', openAPIJSONHandler);
 
-// Health Check Endpoint
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     summary: Health check endpoint
+ *     description: |
+ *       Check the health status of the API and its dependencies (database).
+ *       Returns 200 OK if all services are healthy, 500 if any service is degraded.
+ *
+ *       **Use cases:**
+ *       - Kubernetes liveness/readiness probes
+ *       - Monitoring systems (Datadog, New Relic, etc.)
+ *       - Load balancer health checks
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: System is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [ok]
+ *                   example: ok
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2025-10-20T01:30:00.000Z"
+ *                 services:
+ *                   type: object
+ *                   properties:
+ *                     api:
+ *                       type: string
+ *                       enum: [up]
+ *                       example: up
+ *                     database:
+ *                       type: string
+ *                       enum: [up, down]
+ *                       example: up
+ *             examples:
+ *               healthy:
+ *                 summary: All services healthy
+ *                 value:
+ *                   status: ok
+ *                   timestamp: "2025-10-20T01:30:00.000Z"
+ *                   services:
+ *                     api: up
+ *                     database: up
+ *       500:
+ *         description: System is degraded (database unavailable)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [ok]
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 services:
+ *                   type: object
+ *                   properties:
+ *                     api:
+ *                       type: string
+ *                       enum: [up]
+ *                     database:
+ *                       type: string
+ *                       enum: [down]
+ *             example:
+ *               status: ok
+ *               timestamp: "2025-10-20T01:30:00.000Z"
+ *               services:
+ *                 api: up
+ *                 database: down
+ */
 app.get('/api/v1/health', async (req: Request, res: Response) => {
   const dbStatus = await (async () => {
     try {

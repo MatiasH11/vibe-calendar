@@ -371,6 +371,39 @@ export class ShiftRepository extends BaseRepository<shift, typeof prisma.shift> 
 
     return existing !== null;
   }
+
+  /**
+   * Bulk soft delete shifts for a company.
+   *
+   * @param shiftIds - Array of shift IDs to delete
+   * @param companyId - Company ID for security validation
+   * @returns Count of deleted shifts
+   */
+  async bulkSoftDelete(shiftIds: number[], companyId: number): Promise<{ count: number }> {
+    // First, validate that all shifts belong to the specified company to prevent unauthorized deletions.
+    const countInCompany = await this.delegate.count({
+      where: {
+        id: { in: shiftIds },
+        company_employee: {
+          company_id: companyId,
+        },
+      },
+    });
+
+    if (countInCompany !== shiftIds.length) {
+      throw new Error('UNAUTHORIZED_OR_INVALID_IDS');
+    }
+
+    // Perform the bulk soft delete.
+    return this.delegate.updateMany({
+      where: {
+        id: { in: shiftIds },
+      },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+  }
 }
 
 // Export singleton instance

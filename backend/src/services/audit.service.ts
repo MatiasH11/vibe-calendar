@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '../config/prisma_client';
-import { audit_action } from '@prisma/client';
+import { audit_action, Prisma } from '@prisma/client';
 
 // Type definitions for audit logging
 export interface AuditLogData {
@@ -50,8 +50,8 @@ export const audit_service = {
           action: data.action,
           entity_type: data.entity_type,
           entity_id: data.entity_id,
-          old_values: data.old_values || null,
-          new_values: data.new_values || null,
+          old_values: data.old_values || Prisma.JsonNull,
+          new_values: data.new_values || Prisma.JsonNull,
           ip_address: data.ip_address,
           user_agent: data.user_agent,
         },
