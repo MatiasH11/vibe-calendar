@@ -8,5 +8,7 @@ export {
   InvalidCredentialsError,
   UserNotAssociatedWithCompanyError,
   TransactionFailedError,
+  ResourceNotFoundError,
+  UnauthorizedCompanyAccessError,
 } from './auth-errors';
 

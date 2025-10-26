@@ -5,8 +5,8 @@ const path = require('path');
 const readline = require('readline');
 
 // Paths
-const SCHEMA_PATH = path.join(__dirname, '..', 'prisma', 'schema.prisma');
-const SRC_PATH = path.join(__dirname, '..', 'src');
+const SCHEMA_PATH = path.join(__dirname, '..', '..', 'prisma', 'schema.prisma');
+const SRC_PATH = path.join(__dirname, '..', '..', 'src');
 
 // Parse Prisma schema to extract model names
 function getPrismaModels() {
@@ -35,25 +35,44 @@ function extractFieldsFromPrismaModel(modelName) {
   }
 
   const modelContent = modelMatch[1];
-  const fieldRegex = /^\s*(\w+)\s+(\w+)(\[\])?\s*(\?)?/gm;
-  const fields = [];
-  let fieldMatch;
 
   // Fields to exclude (auto-generated or internal)
   const excludeFields = ['id', 'created_at', 'updated_at', 'deleted_at'];
 
-  while ((fieldMatch = fieldRegex.exec(modelContent)) !== null) {
+  // Prisma scalar types (only include these)
+  const scalarTypes = ['String', 'Int', 'Float', 'Boolean', 'DateTime', 'Json', 'Decimal', 'BigInt', 'Bytes'];
+
+  // Process line by line to avoid regex global state issues
+  const lines = modelContent.split('\n');
+  const fieldRegex = /^\s*(\w+)\s+(\w+)(\[\])?\s*(\?)?/;
+  const fields = [];
+
+  for (const line of lines) {
+    const fieldMatch = line.match(fieldRegex);
+
+    if (!fieldMatch) continue;
+
     const [, fieldName, fieldType, isArray, isOptional] = fieldMatch;
 
-    // Skip excluded fields and relations (uppercase types like User, Company, etc.)
-    if (excludeFields.includes(fieldName) || fieldType[0] === fieldType[0].toUpperCase()) {
+    // Skip excluded fields
+    if (excludeFields.includes(fieldName)) {
+      continue;
+    }
+
+    // Skip array fields (relations like audit_log[], department[])
+    if (isArray) {
+      continue;
+    }
+
+    // Skip relation fields (non-scalar types like company_settings?, employee)
+    if (!scalarTypes.includes(fieldType)) {
       continue;
     }
 
     fields.push({
       name: fieldName,
       type: fieldType,
-      isArray: !!isArray,
+      isArray: false,
       isOptional: !!isOptional,
     });
   }
@@ -70,6 +89,9 @@ function mapPrismaTypeToZod(prismaType, isOptional) {
     Boolean: 'z.boolean()',
     DateTime: 'z.string().datetime()',
     Json: 'z.record(z.any())',
+    Decimal: 'z.number()',
+    BigInt: 'z.bigint()',
+    Bytes: 'z.instanceof(Buffer)',
   };
 
   let zodType = typeMap[prismaType] || 'z.any()';
@@ -90,6 +112,9 @@ function mapPrismaTypeToTS(prismaType) {
     Boolean: 'boolean',
     DateTime: 'Date',
     Json: 'Record<string, any>',
+    Decimal: 'number',
+    BigInt: 'bigint',
+    Bytes: 'Buffer',
   };
 
   return typeMap[prismaType] || 'any';
@@ -903,6 +928,46 @@ function ensureDirectoryExists(dirPath) {
   }
 }
 
+// Generate CRUD files for a given model
+function generateCRUDFiles(selectedModel, fields) {
+  console.log(`\n📝 Generating CRUD files for ${selectedModel}...\n`);
+
+  // Generate files
+  const entityLower = selectedModel.toLowerCase();
+
+  // Validation file
+  const validationPath = path.join(SRC_PATH, 'validations', `${entityLower}.validation.ts`);
+  ensureDirectoryExists(path.dirname(validationPath));
+  fs.writeFileSync(validationPath, generateValidationFile(selectedModel, fields));
+  console.log(`✅ Created: src/validations/${entityLower}.validation.ts`);
+
+  // Service file
+  const servicePath = path.join(SRC_PATH, 'services', `${entityLower}.service.ts`);
+  ensureDirectoryExists(path.dirname(servicePath));
+  fs.writeFileSync(servicePath, generateServiceFile(selectedModel, fields));
+  console.log(`✅ Created: src/services/${entityLower}.service.ts`);
+
+  // Controller file
+  const controllerPath = path.join(SRC_PATH, 'controllers', `${entityLower}.controller.ts`);
+  ensureDirectoryExists(path.dirname(controllerPath));
+  fs.writeFileSync(controllerPath, generateControllerFile(selectedModel));
+  console.log(`✅ Created: src/controllers/${entityLower}.controller.ts`);
+
+  // Routes file
+  const routesPath = path.join(SRC_PATH, 'routes', `${entityLower}.routes.ts`);
+  ensureDirectoryExists(path.dirname(routesPath));
+  fs.writeFileSync(routesPath, generateRoutesFile(selectedModel));
+  console.log(`✅ Created: src/routes/${entityLower}.routes.ts`);
+
+  console.log('\n✨ CRUD generation completed!\n');
+  console.log('Next steps:');
+  console.log(`  1. Review generated files in src/`);
+  console.log(`  2. Add route to app.ts: import ${entityLower}Router from './routes/${entityLower}.routes';`);
+  console.log(`  3. Add route to app.ts: app.use('/api/v1/${entityLower}s', ${entityLower}Router);`);
+  console.log(`  4. Update Swagger tags in src/config/swagger.ts`);
+  console.log(`  5. Test endpoints at /api/docs\n`);
+}
+
 // Main generator function
 async function generateCRUD() {
   console.log('\n📦 CRUD Generator v1.0\n');
@@ -915,6 +980,42 @@ async function generateCRUD() {
     process.exit(1);
   }
 
+  // Check if model name was provided as command line argument
+  const modelArgument = process.argv[2];
+
+  if (modelArgument) {
+    // Direct generation mode
+    if (!models.includes(modelArgument)) {
+      console.error(`❌ Invalid model: "${modelArgument}"`);
+      console.log('\nAvailable models:');
+      models.forEach((model, index) => {
+        console.log(`  ${index + 1}. ${model}`);
+      });
+      process.exit(1);
+    }
+
+    console.log(`✅ Selected model: ${modelArgument}\n`);
+
+    try {
+      // Extract fields from model
+      const fields = extractFieldsFromPrismaModel(modelArgument);
+
+      console.log('Detected fields:');
+      fields.forEach((field) => {
+        const optional = field.isOptional ? '?' : '';
+        console.log(`  - ${field.name}: ${field.type}${optional}`);
+      });
+
+      generateCRUDFiles(modelArgument, fields);
+    } catch (error) {
+      console.error(`❌ Error: ${error.message}`);
+      process.exit(1);
+    }
+
+    return;
+  }
+
+  // Interactive mode
   console.log('Available models:');
   models.forEach((model, index) => {
     console.log(`  ${index + 1}. ${model}`);
@@ -953,43 +1054,7 @@ async function generateCRUD() {
         console.log(`  - ${field.name}: ${field.type}${optional}`);
       });
 
-      console.log(`\n📝 Generating CRUD files for ${selectedModel}...\n`);
-
-      // Generate files
-      const entityLower = selectedModel.toLowerCase();
-
-      // Validation file
-      const validationPath = path.join(SRC_PATH, 'validations', `${entityLower}.validation.ts`);
-      ensureDirectoryExists(path.dirname(validationPath));
-      fs.writeFileSync(validationPath, generateValidationFile(selectedModel, fields));
-      console.log(`✅ Created: src/validations/${entityLower}.validation.ts`);
-
-      // Service file
-      const servicePath = path.join(SRC_PATH, 'services', `${entityLower}.service.ts`);
-      ensureDirectoryExists(path.dirname(servicePath));
-      fs.writeFileSync(servicePath, generateServiceFile(selectedModel, fields));
-      console.log(`✅ Created: src/services/${entityLower}.service.ts`);
-
-      // Controller file
-      const controllerPath = path.join(SRC_PATH, 'controllers', `${entityLower}.controller.ts`);
-      ensureDirectoryExists(path.dirname(controllerPath));
-      fs.writeFileSync(controllerPath, generateControllerFile(selectedModel));
-      console.log(`✅ Created: src/controllers/${entityLower}.controller.ts`);
-
-      // Routes file
-      const routesPath = path.join(SRC_PATH, 'routes', `${entityLower}.routes.ts`);
-      ensureDirectoryExists(path.dirname(routesPath));
-      fs.writeFileSync(routesPath, generateRoutesFile(selectedModel));
-      console.log(`✅ Created: src/routes/${entityLower}.routes.ts`);
-
-      console.log('\n✨ CRUD generation completed!\n');
-      console.log('Next steps:');
-      console.log(`  1. Review generated files in src/`);
-      console.log(`  2. Add route to app.ts: import ${entityLower}Router from './routes/${entityLower}.routes';`);
-      console.log(`  3. Add route to app.ts: app.use('/api/v1/${entityLower}s', ${entityLower}Router);`);
-      console.log(`  4. Update Swagger tags in src/config/swagger.ts`);
-      console.log(`  5. Test endpoints at /api/docs\n`);
-
+      generateCRUDFiles(selectedModel, fields);
     } catch (error) {
       console.error(`❌ Error: ${error.message}`);
       process.exit(1);

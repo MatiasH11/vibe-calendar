@@ -12,7 +12,12 @@
       "Bash(npm run prisma:generate:*)",
       "Bash(cat:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run generate:crud:*)"
+      "Bash(npm run generate:crud:*)",
+      "Bash(node scripts/generate-crud/generate-crud.js:*)",
+      "Bash(node -e:*)",
+      "Bash(xxd:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 15 npx prisma generate:*)"
     ],
     "deny": [],
     "ask": []

@@ -18,6 +18,7 @@ const swaggerDefinition = {
   tags: [
     { name: 'Auth', description: 'Authentication endpoints' },
     { name: 'Audit', description: 'Audit log endpoints' },
+    { name: 'Companies', description: 'Company management endpoints' },
   ],
   components: {
     securitySchemes: {

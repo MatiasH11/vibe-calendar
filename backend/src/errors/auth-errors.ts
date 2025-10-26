@@ -60,3 +60,27 @@ export class TransactionFailedError extends AppError {
     super('Database transaction failed', { context });
   }
 }
+
+/**
+ * Thrown when a requested resource is not found
+ */
+export class ResourceNotFoundError extends AppError {
+  readonly statusCode = HTTP_CODES.NOT_FOUND;
+  readonly code = 'RESOURCE_NOT_FOUND';
+
+  constructor(resourceType: string, resourceId: number | string) {
+    super(`${resourceType} not found`, { resourceType, resourceId });
+  }
+}
+
+/**
+ * Thrown when user tries to access a resource from a different company
+ */
+export class UnauthorizedCompanyAccessError extends AppError {
+  readonly statusCode = HTTP_CODES.FORBIDDEN;
+  readonly code = 'UNAUTHORIZED_COMPANY_ACCESS';
+
+  constructor(resourceType: string, resourceId: number) {
+    super(`Unauthorized access to ${resourceType}`, { resourceType, resourceId });
+  }
+}
