@@ -8,7 +8,6 @@ import {
   bulk_update_company_schema,
   bulk_delete_company_schema,
 } from '../validations/company.validation';
-import '../types/express'; // Import Express type extensions
 
 export const company_controller = {
   /**
