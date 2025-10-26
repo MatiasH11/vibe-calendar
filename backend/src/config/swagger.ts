@@ -20,6 +20,7 @@ const swaggerDefinition = {
     { name: 'Audit', description: 'Audit log endpoints' },
     { name: 'Company', description: 'Company management endpoints' },
     { name: 'user', description: 'User management endpoints' },
+    { name: 'company_settings', description: 'Company settings endpoints' },
   ],
   components: {
     securitySchemes: {
