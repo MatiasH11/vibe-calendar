@@ -8,6 +8,7 @@ import { swaggerUIMiddleware } from './config/swagger';
 import authRouter from './routes/auth.routes';
 import auditRouter from './routes/audit.routes';
 import companyRouter from './routes/company.routes';
+import userRouter from './routes/user.routes';
 
 const app: Express = express();
 
@@ -50,6 +51,7 @@ app.use('/api/docs', ...swaggerUIMiddleware);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/audit', auditRouter);
 app.use('/api/v1/company', companyRouter);
+app.use('/api/v1/user', userRouter);
 
 // 404 Handler
 app.use('*', (req: Request, res: Response) => {

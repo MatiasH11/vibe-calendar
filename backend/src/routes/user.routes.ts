@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { company_controller } from '../controllers/company.controller';
+import { user_controller } from '../controllers/user.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -9,10 +9,10 @@ router.use(authMiddleware);
 
 /**
  * @openapi
- * /company:
+ * /user:
  *   get:
- *     tags: [Company]
- *     summary: Get all companies
+ *     tags: [user]
+ *     summary: Get all users
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -46,17 +46,17 @@ router.use(authMiddleware);
  *           type: string
  *           enum: [asc, desc]
  *     responses:
-*       200:
- *         description: List of companies with pagination
+ *       200:
+ *         description: List of users with pagination
  */
-router.get('/', company_controller.getAll);
+router.get('/', user_controller.getAll);
 
 /**
  * @openapi
- * /company/{id}:
+ * /user/{id}:
  *   get:
- *     tags: [Company]
- *     summary: Get company by ID
+ *     tags: [user]
+ *     summary: Get user by ID
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -67,18 +67,18 @@ router.get('/', company_controller.getAll);
  *           type: integer
  *     responses:
  *       200:
- *         description: company details
+ *         description: user details
  *       404:
- *         description: company not found
+ *         description: user not found
  */
-router.get('/:id', company_controller.getById);
+router.get('/:id', user_controller.getById);
 
 /**
  * @openapi
- * /company:
+ * /user:
  *   post:
- *     tags: [Company]
- *     summary: Create new company
+ *     tags: [user]
+ *     summary: Create new user
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -89,16 +89,16 @@ router.get('/:id', company_controller.getById);
  *             type: object
  *     responses:
  *       201:
- *         description: company created successfully
+ *         description: user created successfully
  */
-router.post('/', company_controller.create);
+router.post('/', user_controller.create);
 
 /**
  * @openapi
- * /company/{id}:
+ * /user/{id}:
  *   put:
- *     tags: [Company]
- *     summary: Update company
+ *     tags: [user]
+ *     summary: Update user
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -115,16 +115,16 @@ router.post('/', company_controller.create);
  *             type: object
  *     responses:
  *       200:
- *         description: company updated successfully
+ *         description: user updated successfully
  */
-router.put('/:id', company_controller.update);
+router.put('/:id', user_controller.update);
 
 /**
  * @openapi
- * /company/{id}:
+ * /user/{id}:
  *   delete:
- *     tags: [Company]
- *     summary: Delete company (soft delete)
+ *     tags: [user]
+ *     summary: Delete user (soft delete)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -135,16 +135,16 @@ router.put('/:id', company_controller.update);
  *           type: integer
  *     responses:
  *       200:
- *         description: company deleted successfully
+ *         description: user deleted successfully
  */
-router.delete('/:id', company_controller.delete);
+router.delete('/:id', user_controller.delete);
 
 /**
  * @openapi
- * /company/bulk/create:
+ * /user/bulk/create:
  *   post:
- *     tags: [Company]
- *     summary: Bulk create companies
+ *     tags: [user]
+ *     summary: Bulk create users
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -159,17 +159,17 @@ router.delete('/:id', company_controller.delete);
  *                 minItems: 1
  *                 maxItems: 100
  *     responses:
-*       201:
- *         description: companies created successfully
+ *       201:
+ *         description: users created successfully
  */
-router.post('/bulk/create', company_controller.bulkCreate);
+router.post('/bulk/create', user_controller.bulkCreate);
 
 /**
  * @openapi
- * /company/bulk/update:
+ * /user/bulk/update:
  *   put:
- *     tags: [Company]
- *     summary: Bulk update companies
+ *     tags: [user]
+ *     summary: Bulk update users
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -188,17 +188,17 @@ router.post('/bulk/create', company_controller.bulkCreate);
  *               data:
  *                 type: object
  *     responses:
-*       200:
- *         description: companies updated successfully
+ *       200:
+ *         description: users updated successfully
  */
-router.put('/bulk/update', company_controller.bulkUpdate);
+router.put('/bulk/update', user_controller.bulkUpdate);
 
 /**
  * @openapi
- * /company/bulk/delete:
+ * /user/bulk/delete:
  *   delete:
- *     tags: [Company]
- *     summary: Bulk delete companies
+ *     tags: [user]
+ *     summary: Bulk delete users
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -215,9 +215,9 @@ router.put('/bulk/update', company_controller.bulkUpdate);
  *                 minItems: 1
  *                 maxItems: 100
  *     responses:
-*       200:
- *         description: companies deleted successfully
+ *       200:
+ *         description: users deleted successfully
  */
-router.delete('/bulk/delete', company_controller.bulkDelete);
+router.delete('/bulk/delete', user_controller.bulkDelete);
 
 export default router;
