@@ -697,7 +697,7 @@ function generateRoutesFile(entityName) {
 
   return `import { Router } from 'express';
 import { ${entityLower}_controller } from '../controllers/${entityLower}.controller';
-import { authMiddleware } from '../middlewares/auth';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -706,9 +706,9 @@ router.use(authMiddleware);
 
 /**
  * @openapi
- * /${entityLower}s:
+ * /${entityLower}:
  *   get:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Get all ${entityName}s
  *     security:
  *       - bearerAuth: []
@@ -750,9 +750,9 @@ router.get('/', ${entityLower}_controller.getAll);
 
 /**
  * @openapi
- * /${entityLower}s/{id}:
+ * /${entityLower}/{id}:
  *   get:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Get ${entityName} by ID
  *     security:
  *       - bearerAuth: []
@@ -772,9 +772,9 @@ router.get('/:id', ${entityLower}_controller.getById);
 
 /**
  * @openapi
- * /${entityLower}s:
+ * /${entityLower}:
  *   post:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Create new ${entityName}
  *     security:
  *       - bearerAuth: []
@@ -792,9 +792,9 @@ router.post('/', ${entityLower}_controller.create);
 
 /**
  * @openapi
- * /${entityLower}s/{id}:
+ * /${entityLower}/{id}:
  *   put:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Update ${entityName}
  *     security:
  *       - bearerAuth: []
@@ -818,9 +818,9 @@ router.put('/:id', ${entityLower}_controller.update);
 
 /**
  * @openapi
- * /${entityLower}s/{id}:
+ * /${entityLower}/{id}:
  *   delete:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Delete ${entityName} (soft delete)
  *     security:
  *       - bearerAuth: []
@@ -838,9 +838,9 @@ router.delete('/:id', ${entityLower}_controller.delete);
 
 /**
  * @openapi
- * /${entityLower}s/bulk/create:
+ * /${entityLower}/bulk/create:
  *   post:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Bulk create ${entityName}s
  *     security:
  *       - bearerAuth: []
@@ -863,9 +863,9 @@ router.post('/bulk/create', ${entityLower}_controller.bulkCreate);
 
 /**
  * @openapi
- * /${entityLower}s/bulk/update:
+ * /${entityLower}/bulk/update:
  *   put:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Bulk update ${entityName}s
  *     security:
  *       - bearerAuth: []
@@ -892,9 +892,9 @@ router.put('/bulk/update', ${entityLower}_controller.bulkUpdate);
 
 /**
  * @openapi
- * /${entityLower}s/bulk/delete:
+ * /${entityLower}/bulk/delete:
  *   delete:
- *     tags: [${entityName}s]
+ *     tags: [${entityName}]
  *     summary: Bulk delete ${entityName}s
  *     security:
  *       - bearerAuth: []
@@ -963,7 +963,7 @@ function generateCRUDFiles(selectedModel, fields) {
   console.log('Next steps:');
   console.log(`  1. Review generated files in src/`);
   console.log(`  2. Add route to app.ts: import ${entityLower}Router from './routes/${entityLower}.routes';`);
-  console.log(`  3. Add route to app.ts: app.use('/api/v1/${entityLower}s', ${entityLower}Router);`);
+  console.log(`  3. Add route to app.ts: app.use('/api/v1/${entityLower}', ${entityLower}Router);`);
   console.log(`  4. Update Swagger tags in src/config/swagger.ts`);
   console.log(`  5. Test endpoints at /api/docs\n`);
 }

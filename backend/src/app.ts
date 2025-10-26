@@ -49,7 +49,7 @@ app.use('/api/docs', ...swaggerUIMiddleware);
 // Register application routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/audit', auditRouter);
-app.use('/api/v1/companies', companyRouter);
+app.use('/api/v1/company', companyRouter);
 
 // 404 Handler
 app.use('*', (req: Request, res: Response) => {
