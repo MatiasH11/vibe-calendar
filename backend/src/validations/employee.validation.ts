@@ -1,0 +1,53 @@
+import { z } from 'zod';
+
+// Create employee schema
+// Note: company_id is automatically set from authenticated user's company
+export const create_employee_schema = z.object({
+  user_id: z.number().int().positive('User ID is required'),
+  department_id: z.number().int().positive('Department ID is required'),
+  company_role: z.enum(['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE']).default('EMPLOYEE'),
+  position: z.string().optional(),
+  is_active: z.boolean().default(true),
+});
+
+// Update employee schema (all fields optional)
+export const update_employee_schema = z.object({
+  department_id: z.number().int().positive('Department ID must be valid').optional(),
+  company_role: z.enum(['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE']).optional(),
+  position: z.string().optional(),
+  is_active: z.boolean().optional(),
+});
+
+// Query filters schema
+export const employee_filters_schema = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  search: z.string().optional(),
+  is_active: z.enum(['true', 'false']).optional(),
+  sort_by: z.string().optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+});
+
+// Bulk create schema
+export const bulk_create_employee_schema = z.object({
+  items: z.array(create_employee_schema).min(1).max(100),
+});
+
+// Bulk update schema
+export const bulk_update_employee_schema = z.object({
+  ids: z.array(z.number().int()).min(1).max(100),
+  data: update_employee_schema,
+});
+
+// Bulk delete schema
+export const bulk_delete_employee_schema = z.object({
+  ids: z.array(z.number().int()).min(1).max(100),
+});
+
+// Export types
+export type create_employee_body = z.infer<typeof create_employee_schema>;
+export type update_employee_body = z.infer<typeof update_employee_schema>;
+export type employee_filters = z.infer<typeof employee_filters_schema>;
+export type bulk_create_employee_body = z.infer<typeof bulk_create_employee_schema>;
+export type bulk_update_employee_body = z.infer<typeof bulk_update_employee_schema>;
+export type bulk_delete_employee_body = z.infer<typeof bulk_delete_employee_schema>;

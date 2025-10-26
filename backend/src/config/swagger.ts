@@ -22,6 +22,7 @@ const swaggerDefinition = {
     { name: 'user', description: 'User management endpoints' },
     { name: 'company_settings', description: 'Company settings endpoints' },
     { name: 'department', description: 'Department management endpoints' },
+    { name: 'employee', description: 'Employee management endpoints' },
   ],
   components: {
     securitySchemes: {

@@ -11,6 +11,7 @@ import companyRouter from './routes/company.routes';
 import userRouter from './routes/user.routes';
 import companySettingsRouter from './routes/company_settings.routes';
 import departmentRouter from './routes/department.routes';
+import employeeRouter from './routes/employee.routes';
 
 const app: Express = express();
 
@@ -56,6 +57,7 @@ app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/user', userRouter);
 app.use('/api/v1/company_settings', companySettingsRouter);
 app.use('/api/v1/department', departmentRouter);
+app.use('/api/v1/employee', employeeRouter);
 
 // 404 Handler
 app.use('*', (req: Request, res: Response) => {
