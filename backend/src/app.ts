@@ -12,6 +12,8 @@ import userRouter from './routes/user.routes';
 import companySettingsRouter from './routes/company_settings.routes';
 import departmentRouter from './routes/department.routes';
 import employeeRouter from './routes/employee.routes';
+import shiftTemplateRouter from './routes/shift_template.routes';
+import shiftRouter from './routes/shift.routes';
 
 const app: Express = express();
 
@@ -58,6 +60,8 @@ app.use('/api/v1/user', userRouter);
 app.use('/api/v1/company_settings', companySettingsRouter);
 app.use('/api/v1/department', departmentRouter);
 app.use('/api/v1/employee', employeeRouter);
+app.use('/api/v1/shift_template', shiftTemplateRouter);
+app.use('/api/v1/shift', shiftRouter);
 
 // 404 Handler
 app.use('*', (req: Request, res: Response) => {

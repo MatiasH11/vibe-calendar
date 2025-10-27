@@ -44,7 +44,8 @@ function extractFieldsFromPrismaModel(modelName) {
 
   // Process line by line to avoid regex global state issues
   const lines = modelContent.split('\n');
-  const fieldRegex = /^\s*(\w+)\s+(\w+)(\[\])?\s*(\?)?/;
+  // Enhanced regex to capture @db annotations (e.g., @db.Time(6), @db.Date)
+  const fieldRegex = /^\s*(\w+)\s+(\w+)(\[\])?\s*(\?)?\s*(@db\.(\w+)(\(\d+\))?)?/;
   const fields = [];
 
   for (const line of lines) {
@@ -52,7 +53,7 @@ function extractFieldsFromPrismaModel(modelName) {
 
     if (!fieldMatch) continue;
 
-    const [, fieldName, fieldType, isArray, isOptional] = fieldMatch;
+    const [, fieldName, fieldType, isArray, isOptional, , dbType] = fieldMatch;
 
     // Skip excluded fields
     if (excludeFields.includes(fieldName)) {
@@ -74,6 +75,7 @@ function extractFieldsFromPrismaModel(modelName) {
       type: fieldType,
       isArray: false,
       isOptional: !!isOptional,
+      dbType: dbType || null, // Capture @db annotation (e.g., "Time", "Date", "VarChar")
     });
   }
 
@@ -81,7 +83,21 @@ function extractFieldsFromPrismaModel(modelName) {
 }
 
 // Map Prisma type to Zod type
-function mapPrismaTypeToZod(prismaType, isOptional) {
+function mapPrismaTypeToZod(prismaType, isOptional, dbType) {
+  // Handle special PostgreSQL types with @db annotations
+  if (dbType === 'Time') {
+    // PostgreSQL Time field - validate UTC time format HH:mm
+    let zodType = 'z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d$/, "Must be UTC time in HH:mm format (e.g., \\"14:30\\", \\"09:00\\")")';
+    return isOptional ? zodType + '.optional()' : zodType;
+  }
+
+  if (dbType === 'Date') {
+    // PostgreSQL Date field - validate ISO date format YYYY-MM-DD
+    let zodType = 'z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/, "Must be ISO date in YYYY-MM-DD format (e.g., \\"2025-10-26\\")")';
+    return isOptional ? zodType + '.optional()' : zodType;
+  }
+
+  // Standard type mappings
   const typeMap = {
     String: 'z.string()',
     Int: 'z.number().int()',
@@ -130,12 +146,12 @@ function generateValidationFile(entityName, fields) {
 
 // Create ${entityName} schema
 export const create_${entityLower}_schema = z.object({
-${createFields.map(f => `  ${f.name}: ${mapPrismaTypeToZod(f.type, f.isOptional)},`).join('\n')}
+${createFields.map(f => `  ${f.name}: ${mapPrismaTypeToZod(f.type, f.isOptional, f.dbType)},`).join('\n')}
 });
 
 // Update ${entityName} schema (all fields optional)
 export const update_${entityLower}_schema = z.object({
-${updateFields.map(f => `  ${f.name}: ${mapPrismaTypeToZod(f.type, true)},`).join('\n')}
+${updateFields.map(f => `  ${f.name}: ${mapPrismaTypeToZod(f.type, true, f.dbType)},`).join('\n')}
 });
 
 // Query filters schema
