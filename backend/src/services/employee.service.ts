@@ -12,6 +12,7 @@ import {
   UnauthorizedCompanyAccessError,
   TransactionFailedError,
 } from '../errors';
+import { formatTimeToUTC, formatDateToISO } from '../utils/time.utils';
 
 export const employee_service = {
   /**
@@ -41,6 +42,70 @@ export const employee_service = {
       where.is_active = filters.is_active === 'true';
     }
 
+    // Add created_at date range filter
+    if (filters.created_after || filters.created_before) {
+      where.created_at = {};
+      if (filters.created_after) {
+        where.created_at.gte = new Date(filters.created_after);
+      }
+      if (filters.created_before) {
+        where.created_at.lte = new Date(filters.created_before);
+      }
+    }
+
+    // Add updated_at date range filter
+    if (filters.updated_after || filters.updated_before) {
+      where.updated_at = {};
+      if (filters.updated_after) {
+        where.updated_at.gte = new Date(filters.updated_after);
+      }
+      if (filters.updated_before) {
+        where.updated_at.lte = new Date(filters.updated_before);
+      }
+    }
+
+    // Build include object dynamically
+    const include: any = {
+      user: {
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+        },
+      },
+      department: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+        },
+      },
+    };
+
+    // Add shifts include if requested
+    if (filters.include === 'shifts') {
+      const shiftWhere: any = {
+        deleted_at: null,
+      };
+
+      // Add date range filters for shifts if provided
+      if (filters.shift_start_date || filters.shift_end_date) {
+        shiftWhere.shift_date = {};
+        if (filters.shift_start_date) {
+          shiftWhere.shift_date.gte = new Date(filters.shift_start_date);
+        }
+        if (filters.shift_end_date) {
+          shiftWhere.shift_date.lte = new Date(filters.shift_end_date);
+        }
+      }
+
+      include.shifts = {
+        where: shiftWhere,
+        orderBy: { shift_date: 'asc' as const },
+      };
+    }
+
     // Get total count and items
     const [total, items] = await Promise.all([
       prisma.employee.count({ where }),
@@ -51,30 +116,30 @@ export const employee_service = {
         orderBy: {
           [filters.sort_by || 'created_at']: filters.sort_order || 'desc',
         },
-        include: {
-          user: {
-            select: {
-              id: true,
-              first_name: true,
-              last_name: true,
-              email: true,
-            },
-          },
-          department: {
-            select: {
-              id: true,
-              name: true,
-              color: true,
-            },
-          },
-        },
+        include,
       }),
     ]);
+
+    // Format shifts dates and times if included
+    const formattedItems = items.map((employee: any) => {
+      if (employee.shifts) {
+        return {
+          ...employee,
+          shifts: employee.shifts.map((shift: any) => ({
+            ...shift,
+            shift_date: formatDateToISO(shift.shift_date),
+            start_time: formatTimeToUTC(shift.start_time),
+            end_time: formatTimeToUTC(shift.end_time),
+          })),
+        };
+      }
+      return employee;
+    });
 
     return {
       success: true,
       data: {
-        items,
+        items: formattedItems,
         pagination: {
           page,
           limit,

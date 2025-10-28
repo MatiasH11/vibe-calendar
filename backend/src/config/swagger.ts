@@ -23,6 +23,8 @@ const swaggerDefinition = {
     { name: 'company_settings', description: 'Company settings endpoints' },
     { name: 'department', description: 'Department management endpoints' },
     { name: 'employee', description: 'Employee management endpoints' },
+    { name: 'shift', description: 'Shift management endpoints' },
+    { name: 'shift_template', description: 'Shift template endpoints' },
   ],
   components: {
     securitySchemes: {

@@ -1,4 +1,20 @@
 import { z } from 'zod';
+import { validateDateFormat } from '../utils/time.utils';
+
+/**
+ * Date schema for ISO date validation
+ *
+ * Enforces strict ISO date format:
+ * - Format: YYYY-MM-DD (e.g., "2025-10-26")
+ * - NO time component, NO timezone indicators
+ *
+ * Backend ONLY accepts ISO dates. Frontend handles timezone conversions.
+ */
+const dateSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Must be ISO date in YYYY-MM-DD format (e.g., \"2025-10-26\")")
+  .refine((date) => validateDateFormat(date), {
+    message: "Invalid ISO date format. Must be YYYY-MM-DD.",
+  });
 
 // Create employee schema
 // Note: company_id is automatically set from authenticated user's company
@@ -26,6 +42,16 @@ export const employee_filters_schema = z.object({
   is_active: z.enum(['true', 'false']).optional(),
   sort_by: z.string().optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
+  // Include related resources
+  include: z.enum(['shifts']).optional(),
+  // Shift date filters (only used when include=shifts)
+  shift_start_date: dateSchema.optional(),
+  shift_end_date: dateSchema.optional(),
+  // Employee date filters (filter which employees are returned)
+  created_after: dateSchema.optional(),
+  created_before: dateSchema.optional(),
+  updated_after: dateSchema.optional(),
+  updated_before: dateSchema.optional(),
 });
 
 // Bulk create schema
