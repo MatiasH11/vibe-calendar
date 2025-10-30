@@ -59,8 +59,8 @@ export class ApiClient {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        // Si no es JSON pero está OK, devolver un objeto vacío
-        return {};
+        // Si no es JSON pero está OK, devolver respuesta por defecto
+        return { success: true } as ApiResponse<T>;
       }
 
       const data = await response.json();
@@ -95,85 +95,151 @@ export class ApiClient {
   }
 
   // Métodos de empleados
-  async getEmployees(filters?: EmployeeFilters): Promise<ApiResponse<any>> {
+  async getEmployees(filters?: EmployeeFilters): Promise<ApiResponse<EmployeeListResponse>> {
     const params = new URLSearchParams();
+
+    // Add all supported filters
+    if (filters?.page) params.append('page', filters.page);
+    if (filters?.limit) params.append('limit', filters.limit);
     if (filters?.search) params.append('search', filters.search);
-    if (filters?.role_id) params.append('role_id', filters.role_id.toString());
-    if (filters?.is_active !== undefined) params.append('is_active', filters.is_active.toString());
-    if (filters?.page) params.append('page', filters.page.toString());
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    
+    if (filters?.is_active !== undefined) params.append('is_active', filters.is_active);
+    if (filters?.sort_by) params.append('sort_by', filters.sort_by);
+    if (filters?.sort_order) params.append('sort_order', filters.sort_order);
+    if (filters?.include) params.append('include', filters.include);
+    if (filters?.shift_start_date) params.append('shift_start_date', filters.shift_start_date);
+    if (filters?.shift_end_date) params.append('shift_end_date', filters.shift_end_date);
+    if (filters?.created_after) params.append('created_after', filters.created_after);
+    if (filters?.created_before) params.append('created_before', filters.created_before);
+    if (filters?.updated_after) params.append('updated_after', filters.updated_after);
+    if (filters?.updated_before) params.append('updated_before', filters.updated_before);
+
     const queryString = params.toString();
-    const endpoint = `/api/v1/employees${queryString ? `?${queryString}` : ''}`;
-    
-    return this.request<any>(endpoint);
+    const endpoint = `/api/v1/employee${queryString ? `?${queryString}` : ''}`;
+
+    return this.request<EmployeeListResponse>(endpoint);
   }
 
   async getEmployee(id: number): Promise<ApiResponse<Employee>> {
-    return this.request(`/api/v1/employees/${id}`);
+    return this.request(`/api/v1/employee/${id}`);
   }
 
   async createEmployee(data: CreateEmployeeRequest): Promise<ApiResponse<Employee>> {
-    return this.request('/api/v1/employees', {
+    return this.request('/api/v1/employee', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async updateEmployee(id: number, data: UpdateEmployeeRequest): Promise<ApiResponse<Employee>> {
-    return this.request(`/api/v1/employees/${id}`, {
+    return this.request(`/api/v1/employee/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
   async deleteEmployee(id: number): Promise<ApiResponse<void>> {
-    return this.request(`/api/v1/employees/${id}`, {
+    return this.request(`/api/v1/employee/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // User methods (for creating users before linking them as employees)
+  async createUser(data: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    password: string;
+    user_type?: 'SUPER_ADMIN' | 'USER';
+  }): Promise<ApiResponse<{ id: number; email: string; first_name: string; last_name: string }>> {
+    return this.request('/api/v1/user', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Combined method to create user and employee in one operation
+   * This handles the two-step process: create user, then create employee
+   */
+  async createUserAndEmployee(data: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    password: string;
+    department_id: number;
+    company_role?: 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+    position?: string;
+    is_active?: boolean;
+  }): Promise<ApiResponse<Employee>> {
+    // Step 1: Create user
+    const userResponse = await this.createUser({
+      email: data.email,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      password: data.password,
+      user_type: 'USER',
+    });
+
+    if (!userResponse.success || !userResponse.data) {
+      return {
+        success: false,
+        error: userResponse.error || { message: 'Failed to create user' },
+      };
+    }
+
+    // Step 2: Create employee with the new user_id
+    const employeeResponse = await this.createEmployee({
+      user_id: userResponse.data.id,
+      department_id: data.department_id,
+      company_role: data.company_role,
+      position: data.position,
+      is_active: data.is_active,
+    });
+
+    return employeeResponse;
   }
 
   async getRoles(): Promise<ApiResponse<Role[]>> {
     return this.request('/api/v1/roles');
   }
 
-  // Métodos específicos para sidebar contextual de cargos
-  async getCargosWithStats(): Promise<ApiResponse<Cargo[]>> {
-    return this.request<Cargo[]>('/api/v1/roles/advanced?include=stats');
+  // Métodos para departamentos
+  async getDepartments(): Promise<ApiResponse<Cargo[]>> {
+    return this.request<Cargo[]>('/api/v1/department');
   }
 
-  async getCargo(id: number): Promise<ApiResponse<Cargo>> {
-    return this.request(`/api/v1/roles/${id}`);
+  async getDepartmentsWithStats(): Promise<ApiResponse<Cargo[]>> {
+    return this.request<Cargo[]>('/api/v1/department');
   }
 
-  async getCargoWithEmployees(id: number): Promise<ApiResponse<CargoWithEmployees>> {
-    return this.request(`/api/v1/roles/${id}?include=employees`);
+  async getDepartment(id: number): Promise<ApiResponse<Cargo>> {
+    return this.request(`/api/v1/department/${id}`);
   }
 
-  async createCargo(data: CreateCargoRequest): Promise<ApiResponse<Cargo>> {
-    return this.request('/api/v1/roles', {
+  // Métodos CRUD para departamentos
+  async createDepartment(data: CreateCargoRequest): Promise<ApiResponse<Cargo>> {
+    return this.request('/api/v1/department', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateCargo(id: number, data: UpdateCargoRequest): Promise<ApiResponse<Cargo>> {
-    return this.request(`/api/v1/roles/${id}`, {
+  async updateDepartment(id: number, data: UpdateCargoRequest): Promise<ApiResponse<Cargo>> {
+    return this.request(`/api/v1/department/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deleteCargo(id: number): Promise<ApiResponse<void>> {
-    return this.request(`/api/v1/roles/${id}`, {
+  async deleteDepartment(id: number): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/department/${id}`, {
       method: 'DELETE',
     });
   }
 
-  // Método para buscar cargos
-  async searchCargos(term: string): Promise<ApiResponse<Cargo[]>> {
+  async searchDepartments(term: string): Promise<ApiResponse<Cargo[]>> {
     const params = new URLSearchParams({ search: term });
-    return this.request<Cargo[]>(`/api/v1/roles/advanced?${params}`);
+    return this.request<Cargo[]>(`/api/v1/department?${params}`);
   }
 
   // Método genérico para requests (usado por servicios específicos)

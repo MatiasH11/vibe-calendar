@@ -71,41 +71,82 @@ export class ShiftsApiService {
     });
   }
 
-  // Método optimizado para obtener empleados para vista de turnos (MEJORADO)
+  // Method to get employees with their shifts using include pattern
   async getEmployeesForShifts(startDate?: string, endDate?: string, weekStart?: string, weekEnd?: string): Promise<EmployeeWithShifts[]> {
     const queryParams = new URLSearchParams();
-    
-    // Priorizar nuevos parámetros, mantener compatibilidad con los antiguos
-    if (startDate) queryParams.append('start_date', startDate);
-    if (endDate) queryParams.append('end_date', endDate);
-    if (weekStart) queryParams.append('week_start', weekStart);
-    if (weekEnd) queryParams.append('week_end', weekEnd);
-    
+
+    // Use include pattern to fetch employees with their shifts
+    queryParams.append('include', 'shifts');
+
+    // Use startDate/endDate (prioritize them), fallback to weekStart/weekEnd for compatibility
+    const shiftStartDate = startDate || weekStart;
+    const shiftEndDate = endDate || weekEnd;
+
+    if (shiftStartDate) queryParams.append('shift_start_date', shiftStartDate);
+    if (shiftEndDate) queryParams.append('shift_end_date', shiftEndDate);
+
+    // Set higher limit for shift grid (default is 50, max is 100)
+    queryParams.append('limit', '100');
+
     const query = queryParams.toString();
-    const endpoint = `/api/v1/employees/with-shifts${query ? `?${query}` : ''}`;
-    
+    const endpoint = `/api/v1/employee${query ? `?${query}` : ''}`;
+
     try {
-      const response = await apiClient.request<EmployeeWithShifts[]>(endpoint, {
+      // Backend returns employees with flat shifts array
+      type BackendEmployee = Omit<EmployeeWithShifts, 'shifts' | 'role' | 'role_id' | 'weekShifts'> & {
+        shifts?: Shift[];
+      };
+
+      const response = await apiClient.requestGeneric<{
+        success: boolean;
+        data: {
+          items: BackendEmployee[];
+          pagination: { page: number; limit: number; total: number; total_pages: number }
+        }
+      }>(endpoint, {
         method: 'GET',
       });
-      
 
-      return response.data || [];
+      const backendEmployees = response.data?.items || [];
+
+      // Transform backend response: group flat shifts array into ShiftByDay structure
+      const transformedEmployees: EmployeeWithShifts[] = backendEmployees.map(emp => {
+        // Group shifts by date
+        const shiftsByDate = new Map<string, Shift[]>();
+
+        if (emp.shifts && emp.shifts.length > 0) {
+          emp.shifts.forEach(shift => {
+            const date = shift.shift_date; // Already in YYYY-MM-DD format
+            if (!shiftsByDate.has(date)) {
+              shiftsByDate.set(date, []);
+            }
+            shiftsByDate.get(date)!.push(shift);
+          });
+        }
+
+        // Convert Map to ShiftByDay array
+        const groupedShifts = Array.from(shiftsByDate.entries()).map(([date, shifts]) => ({
+          date,
+          shifts
+        }));
+
+        // Sort by date
+        groupedShifts.sort((a, b) => a.date.localeCompare(b.date));
+
+        // Return employee with grouped shifts + backward compatibility fields
+        return {
+          ...emp,
+          shifts: groupedShifts,
+          // Backward compatibility (deprecated)
+          role_id: emp.department_id,
+          role: emp.department
+        };
+      });
+
+      return transformedEmployees;
     } catch (error) {
       console.error('❌ Error fetching employees for shifts:', error);
-      
-      // Fallback: intentar con el endpoint legacy
-      try {
-        const fallbackEndpoint = `/api/v1/employees/for-shifts${query ? `?${query}` : ''}`;
-        const fallbackResponse = await apiClient.request<EmployeeWithShifts[]>(fallbackEndpoint, {
-          method: 'GET',
-        });
-        
-        return fallbackResponse.data || [];
-      } catch (fallbackError) {
-        console.error('❌ Fallback also failed:', fallbackError);
-        return [];
-      }
+      return [];
     }
   }
 

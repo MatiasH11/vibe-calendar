@@ -47,7 +47,7 @@ export function useUserContext() {
 
   const getUserRoleDisplay = (): string => {
     if (employeeData) {
-      return `${employeeData.role.name} - ${employeeData.position}`;
+      return `${employeeData.department.name} - ${employeeData.position}`;
     }
     return user?.role_name || '';
   };

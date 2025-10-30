@@ -4,8 +4,9 @@ export interface EmployeeWithShifts {
   id: number;
   company_id: number;
   user_id: number;
-  role_id: number;
-  position: string;               // Posición del empleado
+  department_id: number;
+  company_role?: 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  position: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -15,22 +16,26 @@ export interface EmployeeWithShifts {
     first_name: string;
     last_name: string;
     email: string;
-    created_at: string;
-    updated_at: string;
-    deleted_at?: string;
   };
-  role: {
+  department: {
     id: number;
-    company_id: number;
-    name: string;                 // Rol de negocio: "Admin", "Vendedor", etc.
+    name: string;
     description?: string;
     color: string;
-    created_at: string;
-    updated_at: string;
   };
   shifts: ShiftByDay[];
-  // weekShifts mantiene compatibilidad pero es deprecated
+  // Deprecated fields for backward compatibility
   weekShifts?: ShiftByDay[];
+  role_id?: number;      // @deprecated Use department_id instead
+  role?: {               // @deprecated Use department instead
+    id: number;
+    company_id?: number;
+    name: string;
+    description?: string;
+    color: string;
+    created_at?: string;
+    updated_at?: string;
+  };
 }
 
 export interface ShiftByDay {
