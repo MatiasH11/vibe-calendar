@@ -136,6 +136,11 @@ export const shift_service = {
       ];
     }
 
+    // Add location_id filter (for gerentes to see only their location shifts)
+    if (filters.location_id) {
+      where.location_id = parseInt(filters.location_id as string);
+    }
+
     // Get total count and items
     const [total, items] = await Promise.all([
       prisma.shift.count({ where }),
@@ -236,10 +241,25 @@ export const shift_service = {
     const startTime = parseUTCTime(data.start_time);
     const endTime = parseUTCTime(data.end_time);
 
-    // Check for overlapping shifts on the same date for the same employee
+    // Verify location exists and belongs to company
+    const location = await prisma.location.findFirst({
+      where: {
+        id: data.location_id,
+        company_id,
+        deleted_at: null,
+      },
+    });
+
+    if (!location) {
+      throw new ResourceNotFoundError('location', data.location_id);
+    }
+
+    // Check for overlapping shifts on the same date for the same employee in the same location
+    // CRITICAL: Only check conflicts within the same location, allowing employee rotation
     const existingShifts = await prisma.shift.findMany({
       where: {
         employee_id: data.employee_id,
+        location_id: data.location_id,
         shift_date: shiftDate,
         deleted_at: null,
       },
@@ -293,6 +313,7 @@ export const shift_service = {
         const shift = await tx.shift.create({
           data: {
             employee_id: data.employee_id,
+            location_id: data.location_id,
             shift_date: shiftDate,
             start_time: startTime,
             end_time: endTime,
@@ -426,9 +447,16 @@ export const shift_service = {
    * Delete shift (soft delete)
    */
   async delete(id: number, company_id: number, user_id: number) {
-    // Verify shift exists and belongs to company
+    // Verify shift exists and belongs to company (through employee)
     const existing = await prisma.shift.findFirst({
-      where: { id, company_id, deleted_at: null },
+      where: {
+        id,
+        employee: {
+          company_id,
+          deleted_at: null,
+        },
+        deleted_at: null,
+      },
     });
 
     if (!existing) {
@@ -514,11 +542,14 @@ export const shift_service = {
   ) {
     try {
       const results = await prisma.$transaction(async (tx) => {
-        // Verify all shifts belong to company
+        // Verify all shifts belong to company (through employee)
         const existing = await tx.shift.findMany({
           where: {
             id: { in: data.ids },
-            company_id,
+            employee: {
+              company_id,
+              deleted_at: null,
+            },
             deleted_at: null,
           },
         });
@@ -571,11 +602,14 @@ export const shift_service = {
   ) {
     try {
       const results = await prisma.$transaction(async (tx) => {
-        // Verify all shifts belong to company
+        // Verify all shifts belong to company (through employee)
         const existing = await tx.shift.findMany({
           where: {
             id: { in: data.ids },
-            company_id,
+            employee: {
+              company_id,
+              deleted_at: null,
+            },
             deleted_at: null,
           },
         });

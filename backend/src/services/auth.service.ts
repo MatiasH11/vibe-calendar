@@ -50,7 +50,18 @@ export const auth_service = {
           },
         });
 
-        // 2. Create user (platform level - type: USER)
+        // 2. Create default location for the company
+        const defaultLocation = await tx.location.create({
+          data: {
+            company_id: company.id,
+            name: 'Main',
+            address: '',
+            city: '',
+            is_active: true,
+          },
+        });
+
+        // 3. Create user (platform level - type: USER)
         const user = await tx.user.create({
           data: {
             first_name: data.first_name,
@@ -62,10 +73,11 @@ export const auth_service = {
           },
         });
 
-        // 3. Create default "Management" department for the company
+        // 4. Create default "Management" department for the company
         const managementDepartment = await tx.department.create({
           data: {
             company_id: company.id,
+            location_id: defaultLocation.id,
             name: 'Management',
             description: 'Company management and administration',
             color: '#3B82F6', // Blue for management
@@ -73,10 +85,11 @@ export const auth_service = {
           },
         });
 
-        // 4. Create employee record with OWNER role (company-level permission)
+        // 5. Create employee record with OWNER role (company-level permission)
         const employee = await tx.employee.create({
           data: {
             company_id: company.id,
+            location_id: defaultLocation.id,
             user_id: user.id,
             department_id: managementDepartment.id,
             company_role: 'OWNER', // Company-level permission (OWNER, ADMIN, MANAGER, EMPLOYEE)

@@ -1,23 +1,23 @@
 import { prisma } from '../config/prisma_client';
 import {
-  create_department_body,
-  update_department_body,
-  department_filters,
-  bulk_create_department_body,
-  bulk_update_department_body,
-  bulk_delete_department_body,
-} from '../validations/department.validation';
+  create_location_body,
+  update_location_body,
+  location_filters,
+  bulk_create_location_body,
+  bulk_update_location_body,
+  bulk_delete_location_body,
+} from '../validations/location.validation';
 import {
   ResourceNotFoundError,
   UnauthorizedCompanyAccessError,
   TransactionFailedError,
 } from '../errors';
 
-export const department_service = {
+export const location_service = {
   /**
-   * Get all departments with pagination and filters
+   * Get all locations with pagination and filters
    */
-  async getAll(company_id: number, filters: department_filters) {
+  async getAll(company_id: number, filters: location_filters) {
     const page = parseInt(filters.page || '1');
     const limit = Math.min(parseInt(filters.limit || '50'), 100);
     const skip = (page - 1) * limit;
@@ -39,27 +39,16 @@ export const department_service = {
       where.is_active = filters.is_active === 'true';
     }
 
-    // Build include object
-    const include: any = {
-      location: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    };
-
     // Get total count and items
     const [total, items] = await Promise.all([
-      prisma.department.count({ where }),
-      prisma.department.findMany({
+      prisma.location.count({ where }),
+      prisma.location.findMany({
         where,
         skip,
         take: limit,
         orderBy: {
           [filters.sort_by || 'created_at']: filters.sort_order || 'desc',
         },
-        include,
       }),
     ]);
 
@@ -78,44 +67,32 @@ export const department_service = {
   },
 
   /**
-   * Get department by ID
+   * Get location by ID
    */
   async getById(id: number, company_id: number) {
-    const department = await prisma.department.findFirst({
+    const location = await prisma.location.findFirst({
       where: { id, company_id, deleted_at: null },
     });
 
-    if (!department) {
-      throw new ResourceNotFoundError('department', id);
+    if (!location) {
+      throw new ResourceNotFoundError('location', id);
     }
 
-    return { success: true, data: department };
+    return { success: true, data: location };
   },
 
   /**
-   * Create new department
+   * Create new location
    */
-  async create(data: create_department_body, company_id: number, user_id: number) {
-    // Verify location exists and belongs to company
-    const location = await prisma.location.findFirst({
-      where: {
-        id: data.location_id,
-        company_id,
-        deleted_at: null,
-      },
-    });
-
-    if (!location) {
-      throw new ResourceNotFoundError('location', data.location_id);
-    }
-
+  async create(data: create_location_body, company_id: number, user_id: number) {
     try {
       const result = await prisma.$transaction(async (tx) => {
-        // Create department
-        const department = await tx.department.create({
+        // Create location
+        const location = await tx.location.create({
           data: {
             ...data,
             company_id,
+            is_active: true,
           },
         });
 
@@ -125,44 +102,44 @@ export const department_service = {
             user_id,
             company_id,
             action: 'CREATE',
-            entity_type: 'department',
-            entity_id: department.id,
+            entity_type: 'location',
+            entity_id: location.id,
             new_values: data,
           },
         });
 
-        return department;
+        return location;
       });
 
       return { success: true, data: result };
     } catch (e) {
-      console.error('Create department transaction failed:', e);
-      throw new TransactionFailedError('department creation');
+      console.error('Create location transaction failed:', e);
+      throw new TransactionFailedError('location creation');
     }
   },
 
   /**
-   * Update department
+   * Update location
    */
   async update(
     id: number,
-    data: update_department_body,
+    data: update_location_body,
     company_id: number,
     user_id: number
   ) {
-    // Verify department exists and belongs to company
-    const existing = await prisma.department.findFirst({
+    // Verify location exists and belongs to company
+    const existing = await prisma.location.findFirst({
       where: { id, company_id, deleted_at: null },
     });
 
     if (!existing) {
-      throw new ResourceNotFoundError('department', id);
+      throw new ResourceNotFoundError('location', id);
     }
 
     try {
       const result = await prisma.$transaction(async (tx) => {
-        // Update department
-        const updated = await tx.department.update({
+        // Update location
+        const updated = await tx.location.update({
           where: { id },
           data,
         });
@@ -173,7 +150,7 @@ export const department_service = {
             user_id,
             company_id,
             action: 'UPDATE',
-            entity_type: 'department',
+            entity_type: 'location',
             entity_id: id,
             old_values: existing,
             new_values: data,
@@ -185,28 +162,28 @@ export const department_service = {
 
       return { success: true, data: result };
     } catch (e) {
-      console.error('Update department transaction failed:', e);
-      throw new TransactionFailedError('department update');
+      console.error('Update location transaction failed:', e);
+      throw new TransactionFailedError('location update');
     }
   },
 
   /**
-   * Delete department (soft delete)
+   * Delete location (soft delete)
    */
   async delete(id: number, company_id: number, user_id: number) {
-    // Verify department exists and belongs to company
-    const existing = await prisma.department.findFirst({
+    // Verify location exists and belongs to company
+    const existing = await prisma.location.findFirst({
       where: { id, company_id, deleted_at: null },
     });
 
     if (!existing) {
-      throw new ResourceNotFoundError('department', id);
+      throw new ResourceNotFoundError('location', id);
     }
 
     try {
       await prisma.$transaction(async (tx) => {
-        // Soft delete department
-        await tx.department.update({
+        // Soft delete location
+        await tx.location.update({
           where: { id },
           data: { deleted_at: new Date() },
         });
@@ -217,27 +194,27 @@ export const department_service = {
             user_id,
             company_id,
             action: 'DELETE',
-            entity_type: 'department',
+            entity_type: 'location',
             entity_id: id,
             old_values: existing,
           },
         });
       });
 
-      return { success: true, message: 'department deleted successfully' };
+      return { success: true, message: 'location deleted successfully' };
     } catch (e) {
-      console.error('Delete department transaction failed:', e);
-      throw new TransactionFailedError('department deletion');
+      console.error('Delete location transaction failed:', e);
+      throw new TransactionFailedError('location deletion');
     }
   },
 
   /**
-   * Bulk create departments
+   * Bulk create locations
    */
-  async bulkCreate(data: bulk_create_department_body, company_id: number, user_id: number) {
+  async bulkCreate(data: bulk_create_location_body, company_id: number, user_id: number) {
     try {
       const results = await prisma.$transaction(async (tx) => {
-        const created = await tx.department.createMany({
+        const created = await tx.location.createMany({
           data: data.items.map((item) => ({
             ...item,
             company_id,
@@ -250,7 +227,7 @@ export const department_service = {
             user_id,
             company_id,
             action: 'BULK_CREATE',
-            entity_type: 'department',
+            entity_type: 'location',
             entity_id: 0, // Bulk operation
             new_values: { count: created.count },
           },
@@ -267,23 +244,23 @@ export const department_service = {
         },
       };
     } catch (e) {
-      console.error('Bulk create department transaction failed:', e);
-      throw new TransactionFailedError('Bulk department creation');
+      console.error('Bulk create location transaction failed:', e);
+      throw new TransactionFailedError('Bulk location creation');
     }
   },
 
   /**
-   * Bulk update departments
+   * Bulk update locations
    */
   async bulkUpdate(
-    data: bulk_update_department_body,
+    data: bulk_update_location_body,
     company_id: number,
     user_id: number
   ) {
     try {
       const results = await prisma.$transaction(async (tx) => {
-        // Verify all departments belong to company
-        const existing = await tx.department.findMany({
+        // Verify all locations belong to company
+        const existing = await tx.location.findMany({
           where: {
             id: { in: data.ids },
             company_id,
@@ -292,11 +269,11 @@ export const department_service = {
         });
 
         if (existing.length !== data.ids.length) {
-          throw new Error('Some departments not found or do not belong to company');
+          throw new Error('Some locations not found or do not belong to company');
         }
 
-        // Update all departments
-        const updated = await tx.department.updateMany({
+        // Update all locations
+        const updated = await tx.location.updateMany({
           where: { id: { in: data.ids } },
           data: data.data,
         });
@@ -307,7 +284,7 @@ export const department_service = {
             user_id,
             company_id,
             action: 'BULK_UPDATE',
-            entity_type: 'department',
+            entity_type: 'location',
             entity_id: 0, // Bulk operation
             new_values: { ids: data.ids, count: updated.count },
           },
@@ -324,23 +301,23 @@ export const department_service = {
         },
       };
     } catch (e) {
-      console.error('Bulk update department transaction failed:', e);
-      throw new TransactionFailedError('Bulk department update');
+      console.error('Bulk update location transaction failed:', e);
+      throw new TransactionFailedError('Bulk location update');
     }
   },
 
   /**
-   * Bulk delete departments
+   * Bulk delete locations
    */
   async bulkDelete(
-    data: bulk_delete_department_body,
+    data: bulk_delete_location_body,
     company_id: number,
     user_id: number
   ) {
     try {
       const results = await prisma.$transaction(async (tx) => {
-        // Verify all departments belong to company
-        const existing = await tx.department.findMany({
+        // Verify all locations belong to company
+        const existing = await tx.location.findMany({
           where: {
             id: { in: data.ids },
             company_id,
@@ -349,11 +326,11 @@ export const department_service = {
         });
 
         if (existing.length !== data.ids.length) {
-          throw new Error('Some departments not found or do not belong to company');
+          throw new Error('Some locations not found or do not belong to company');
         }
 
-        // Soft delete all departments
-        const deleted = await tx.department.updateMany({
+        // Soft delete all locations
+        const deleted = await tx.location.updateMany({
           where: { id: { in: data.ids } },
           data: { deleted_at: new Date() },
         });
@@ -364,7 +341,7 @@ export const department_service = {
             user_id,
             company_id,
             action: 'BULK_DELETE',
-            entity_type: 'department',
+            entity_type: 'location',
             entity_id: 0, // Bulk operation
             old_values: { ids: data.ids, count: deleted.count },
           },
@@ -381,8 +358,8 @@ export const department_service = {
         },
       };
     } catch (e) {
-      console.error('Bulk delete department transaction failed:', e);
-      throw new TransactionFailedError('Bulk department deletion');
+      console.error('Bulk delete location transaction failed:', e);
+      throw new TransactionFailedError('Bulk location deletion');
     }
   },
 };

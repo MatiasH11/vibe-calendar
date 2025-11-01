@@ -20,6 +20,7 @@ const dateSchema = z.string()
 // Note: company_id is automatically set from authenticated user's company
 export const create_employee_schema = z.object({
   user_id: z.number().int().positive('User ID is required'),
+  location_id: z.number().int().positive('Location ID is required'),
   department_id: z.number().int().positive('Department ID is required'),
   company_role: z.enum(['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE']).default('EMPLOYEE'),
   position: z.string().optional(),
@@ -42,6 +43,8 @@ export const employee_filters_schema = z.object({
   is_active: z.enum(['true', 'false']).optional(),
   sort_by: z.string().optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
+  // Location filter (for gerentes to see only their location employees)
+  location_id: z.string().optional(),
   // Include related resources
   include: z.enum(['shifts']).optional(),
   // Shift date filters (only used when include=shifts)

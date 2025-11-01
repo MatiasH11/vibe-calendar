@@ -1,35 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
-import { shift_template_service } from '../services/shift_template.service';
+import { location_service } from '../services/location.service';
 import {
-  create_shift_template_schema,
-  update_shift_template_schema,
-  shift_template_filters_schema,
-  bulk_create_shift_template_schema,
-  bulk_update_shift_template_schema,
-  bulk_delete_shift_template_schema,
-} from '../validations/shift_template.validation';
+  create_location_schema,
+  update_location_schema,
+  location_filters_schema,
+  bulk_create_location_schema,
+  bulk_update_location_schema,
+  bulk_delete_location_schema,
+} from '../validations/location.validation';
 
-/**
- * Shift Template Controller
- *
- * Handles HTTP requests for shift template CRUD operations.
- *
- * IMPORTANT - UTC Time Handling:
- * - All time fields (start_time, end_time) are in UTC HH:mm format
- * - Validation ensures times are in "HH:mm" format (e.g., "14:30", "09:00")
- * - Service layer handles conversion between UTC strings and PostgreSQL Time
- * - Frontend is responsible for timezone conversions for display
- */
-export const shift_template_controller = {
+export const location_controller = {
   /**
-   * Get all shift_templates
+   * Get all locations
    */
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const filters = shift_template_filters_schema.parse(req.query);
+      const filters = location_filters_schema.parse(req.query);
       const company_id = req.user!.company_id;
 
-      const result = await shift_template_service.getAll(company_id, filters);
+      const result = await location_service.getAll(company_id, filters);
       res.json(result);
     } catch (error) {
       next(error);
@@ -37,14 +26,14 @@ export const shift_template_controller = {
   },
 
   /**
-   * Get shift_template by ID
+   * Get location by ID
    */
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id);
       const company_id = req.user!.company_id;
 
-      const result = await shift_template_service.getById(id, company_id);
+      const result = await location_service.getById(id, company_id);
       res.json(result);
     } catch (error) {
       next(error);
@@ -52,15 +41,15 @@ export const shift_template_controller = {
   },
 
   /**
-   * Create shift_template
+   * Create location
    */
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = create_shift_template_schema.parse(req.body);
+      const data = create_location_schema.parse(req.body);
       const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
-      const result = await shift_template_service.create(data, company_id, user_id);
+      const result = await location_service.create(data, company_id, user_id);
       res.status(201).json(result);
     } catch (error) {
       next(error);
@@ -68,16 +57,16 @@ export const shift_template_controller = {
   },
 
   /**
-   * Update shift_template
+   * Update location
    */
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id);
-      const data = update_shift_template_schema.parse(req.body);
+      const data = update_location_schema.parse(req.body);
       const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
-      const result = await shift_template_service.update(id, data, company_id, user_id);
+      const result = await location_service.update(id, data, company_id, user_id);
       res.json(result);
     } catch (error) {
       next(error);
@@ -85,7 +74,7 @@ export const shift_template_controller = {
   },
 
   /**
-   * Delete shift_template
+   * Delete location
    */
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
@@ -93,7 +82,7 @@ export const shift_template_controller = {
       const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
-      const result = await shift_template_service.delete(id, company_id, user_id);
+      const result = await location_service.delete(id, company_id, user_id);
       res.json(result);
     } catch (error) {
       next(error);
@@ -101,15 +90,15 @@ export const shift_template_controller = {
   },
 
   /**
-   * Bulk create shift_templates
+   * Bulk create locations
    */
   async bulkCreate(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = bulk_create_shift_template_schema.parse(req.body);
+      const data = bulk_create_location_schema.parse(req.body);
       const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
-      const result = await shift_template_service.bulkCreate(data, company_id, user_id);
+      const result = await location_service.bulkCreate(data, company_id, user_id);
       res.status(201).json(result);
     } catch (error) {
       next(error);
@@ -117,15 +106,15 @@ export const shift_template_controller = {
   },
 
   /**
-   * Bulk update shift_templates
+   * Bulk update locations
    */
   async bulkUpdate(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = bulk_update_shift_template_schema.parse(req.body);
+      const data = bulk_update_location_schema.parse(req.body);
       const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
-      const result = await shift_template_service.bulkUpdate(data, company_id, user_id);
+      const result = await location_service.bulkUpdate(data, company_id, user_id);
       res.json(result);
     } catch (error) {
       next(error);
@@ -133,15 +122,15 @@ export const shift_template_controller = {
   },
 
   /**
-   * Bulk delete shift_templates
+   * Bulk delete locations
    */
   async bulkDelete(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = bulk_delete_shift_template_schema.parse(req.body);
+      const data = bulk_delete_location_schema.parse(req.body);
       const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
-      const result = await shift_template_service.bulkDelete(data, company_id, user_id);
+      const result = await location_service.bulkDelete(data, company_id, user_id);
       res.json(result);
     } catch (error) {
       next(error);

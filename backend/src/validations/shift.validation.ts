@@ -51,6 +51,7 @@ const shiftStatusEnum = z.enum(['draft', 'confirmed', 'cancelled']);
  */
 export const create_shift_schema = z.object({
   employee_id: z.number().int().positive(),
+  location_id: z.number().int().positive('Location ID is required'),
   shift_date: dateSchema,
   start_time: timeSchema,
   end_time: timeSchema,
@@ -93,6 +94,8 @@ export const shift_filters_schema = z.object({
   is_active: z.enum(['true', 'false']).optional(),
   sort_by: z.string().optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
+  // Location filter (for gerentes to see shifts only for their location)
+  location_id: z.string().optional(),
 });
 
 // Bulk create schema

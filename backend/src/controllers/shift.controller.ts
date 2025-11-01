@@ -35,7 +35,7 @@ export const shift_controller = {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const filters = shift_filters_schema.parse(req.query);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
 
       const result = await shift_service.getAll(company_id, filters);
       res.json(result);
@@ -50,7 +50,7 @@ export const shift_controller = {
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
 
       const result = await shift_service.getById(id, company_id);
       res.json(result);
@@ -65,7 +65,7 @@ export const shift_controller = {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const data = create_shift_schema.parse(req.body);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
       const result = await shift_service.create(data, company_id, user_id);
@@ -82,7 +82,7 @@ export const shift_controller = {
     try {
       const id = parseInt(req.params.id);
       const data = update_shift_schema.parse(req.body);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
       const result = await shift_service.update(id, data, company_id, user_id);
@@ -98,7 +98,7 @@ export const shift_controller = {
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
       const result = await shift_service.delete(id, company_id, user_id);
@@ -114,7 +114,7 @@ export const shift_controller = {
   async bulkCreate(req: Request, res: Response, next: NextFunction) {
     try {
       const data = bulk_create_shift_schema.parse(req.body);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
       const result = await shift_service.bulkCreate(data, company_id, user_id);
@@ -130,7 +130,7 @@ export const shift_controller = {
   async bulkUpdate(req: Request, res: Response, next: NextFunction) {
     try {
       const data = bulk_update_shift_schema.parse(req.body);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
       const result = await shift_service.bulkUpdate(data, company_id, user_id);
@@ -146,7 +146,7 @@ export const shift_controller = {
   async bulkDelete(req: Request, res: Response, next: NextFunction) {
     try {
       const data = bulk_delete_shift_schema.parse(req.body);
-      const company_id = req.user!.admin_company_id;
+      const company_id = req.user!.company_id;
       const user_id = req.user!.user_id;
 
       const result = await shift_service.bulkDelete(data, company_id, user_id);

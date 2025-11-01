@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Create department schema
 // Note: company_id is automatically set from authenticated user's company
 export const create_department_schema = z.object({
+  location_id: z.number().int().positive('Location ID is required'),
   name: z.string().min(1, 'Department name is required'),
   description: z.string().optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').default('#3B82F6'),

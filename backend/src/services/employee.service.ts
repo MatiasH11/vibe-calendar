@@ -64,6 +64,11 @@ export const employee_service = {
       }
     }
 
+    // Add location_id filter (for gerentes to see only their location employees)
+    if (filters.location_id) {
+      where.location_id = parseInt(filters.location_id as string);
+    }
+
     // Build include object dynamically
     const include: any = {
       user: {
@@ -72,6 +77,12 @@ export const employee_service = {
           first_name: true,
           last_name: true,
           email: true,
+        },
+      },
+      location: {
+        select: {
+          id: true,
+          name: true,
         },
       },
       department: {
@@ -180,6 +191,19 @@ export const employee_service = {
 
     if (existingEmployee) {
       throw new Error(`User ${data.user_id} is already an employee in this company`);
+    }
+
+    // Verify location exists and belongs to company
+    const location = await prisma.location.findFirst({
+      where: {
+        id: data.location_id,
+        company_id,
+        deleted_at: null,
+      },
+    });
+
+    if (!location) {
+      throw new ResourceNotFoundError('location', data.location_id);
     }
 
     try {
