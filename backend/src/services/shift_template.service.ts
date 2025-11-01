@@ -449,4 +449,121 @@ export const shift_template_service = {
       throw new TransactionFailedError('Bulk shift_template deletion');
     }
   },
+
+
+  /**
+   * Apply scheduling_template to create shift requirements for a scheduling_batch
+   */
+  async applyToSchedulingBatch(
+    batch_id: number,
+    template_id: number,
+    company_id: number,
+    user_id: number
+  ) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const batch = await tx.scheduling_batch.findFirst({
+          where: { id: batch_id, company_id, deleted_at: null },
+        });
+
+        if (!batch) {
+          throw new ResourceNotFoundError('Scheduling Batch', batch_id);
+        }
+
+        const template = await tx.scheduling_template.findFirst({
+          where: { id: template_id, company_id, deleted_at: null },
+        });
+
+        if (!template) {
+          throw new ResourceNotFoundError('Scheduling Template', template_id);
+        }
+
+        if (!template.days_pattern || typeof template.days_pattern !== 'object') {
+          throw new Error('Invalid days_pattern in scheduling_template');
+        }
+
+        const startDate = new Date(batch.start_date);
+        const endDate = new Date(batch.end_date);
+        const dates: Date[] = [];
+
+        for (let current = new Date(startDate); current <= endDate; current.setDate(current.getDate() + 1)) {
+          dates.push(new Date(current));
+        }
+
+        if (dates.length === 0) {
+          throw new Error('Invalid batch date range');
+        }
+
+        const createdRequirements: any[] = [];
+
+        for (const date of dates) {
+          const dayOfWeek = date.getDay().toString();
+          const dayPattern = (template.days_pattern as Record<string, any>)[dayOfWeek];
+
+          if (!dayPattern || !Array.isArray(dayPattern)) {
+            continue;
+          }
+
+          for (const shiftDef of dayPattern) {
+            const requirement = await tx.shift_requirement.create({
+              data: {
+                company_id,
+                location_id: batch.location_id,
+                department_id: shiftDef.department_id,
+                batch_id,
+                shift_date: date,
+                start_time: parseUTCTime(shiftDef.start_time),
+                end_time: parseUTCTime(shiftDef.end_time),
+                status: 'open',
+                notes: `Created from template: ${template.name}`,
+              },
+            });
+
+            if (shiftDef.positions && Array.isArray(shiftDef.positions)) {
+              for (const position of shiftDef.positions) {
+                await tx.shift_requirement_position.create({
+                  data: {
+                    requirement_id: requirement.id,
+                    job_position_id: position.id,
+                    required_count: position.count || 1,
+                    filled_count: 0,
+                  },
+                });
+              }
+            }
+
+            createdRequirements.push(requirement);
+          }
+        }
+
+        await tx.audit_log.create({
+          data: {
+            user_id,
+            company_id,
+            action: 'CREATE',
+            entity_type: 'scheduling_batch_requirements',
+            entity_id: batch_id,
+            new_values: {
+              batch_id,
+              template_id,
+              created_requirements: createdRequirements.length,
+            },
+          },
+        });
+
+        return {
+          created_requirements: createdRequirements.length,
+          requirements: createdRequirements,
+        };
+      });
+
+      return { success: true, data: result };
+    } catch (e) {
+      console.error('Apply template to batch transaction failed:', e);
+      if (e instanceof ResourceNotFoundError) {
+        throw e;
+      }
+      throw new TransactionFailedError('Apply scheduling template to batch');
+    }
+  },
 };

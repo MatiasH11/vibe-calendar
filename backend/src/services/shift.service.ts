@@ -20,6 +20,7 @@ import {
   isValidTimeRange,
   calculateDuration,
 } from '../utils/time.utils';
+import { shift_requirement_position_service } from './shift_requirement_position.service';
 
 /**
  * Format shift dates and times from PostgreSQL objects to UTC strings
@@ -317,8 +318,10 @@ export const shift_service = {
             shift_date: shiftDate,
             start_time: startTime,
             end_time: endTime,
+            position_id: data.position_id,
             notes: data.notes,
-            status: data.status || 'confirmed',
+            status: data.status || 'pending',
+            assigned_by: user_id,
           },
         });
 
@@ -465,6 +468,14 @@ export const shift_service = {
 
     try {
       await prisma.$transaction(async (tx) => {
+        // If shift has a position, decrement filled count
+        if (existing.position_id) {
+          await shift_requirement_position_service.decrementFilledCount(
+            existing.position_id,
+            company_id
+          );
+        }
+
         // Soft delete shift
         await tx.shift.update({
           where: { id },
@@ -649,6 +660,205 @@ export const shift_service = {
     } catch (e) {
       console.error('Bulk delete shift transaction failed:', e);
       throw new TransactionFailedError('Bulk shift deletion');
+    }
+  },
+
+  /**
+   * Confirm shift (update status to 'confirmed' and set confirmation metadata)
+   */
+  async confirmShift(
+    id: number,
+    company_id: number,
+    user_id: number
+  ) {
+    try {
+      // Verify shift exists and belongs to company
+      const shift = await prisma.shift.findFirst({
+        where: {
+          id,
+          employee: {
+            company_id,
+            deleted_at: null,
+          },
+          deleted_at: null,
+        },
+        include: {
+          position: {
+            select: {
+              id: true,
+              requirement_id: true,
+            },
+          },
+        },
+      });
+
+      if (!shift) {
+        throw new ResourceNotFoundError('shift', id);
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Update shift status and confirmation info
+        const confirmed = await tx.shift.update({
+          where: { id },
+          data: {
+            status: 'confirmed',
+            confirmed_by: user_id,
+            confirmed_at: new Date(),
+          },
+        });
+
+        // If shift has position, increment filled count if not already counted
+        if (shift.position && confirmed.status === 'confirmed') {
+          // Check if this is transitioning from pending to confirmed
+          if (shift.status === 'pending') {
+            await shift_requirement_position_service.incrementFilledCount(
+              shift.position.id,
+              company_id
+            );
+
+            // Update requirement status based on fill levels
+            await shift_requirement_position_service.updateRequirementStatus(
+              shift.position.requirement_id,
+              company_id
+            );
+          }
+        }
+
+        // Create audit log
+        await tx.audit_log.create({
+          data: {
+            user_id,
+            company_id,
+            action: 'UPDATE',
+            entity_type: 'shift_confirmation',
+            entity_id: id,
+            new_values: {
+              status: 'confirmed',
+              confirmed_by: user_id,
+              confirmed_at: new Date().toISOString(),
+            },
+          },
+        });
+
+        return confirmed;
+      });
+
+      // Format dates and times for response
+      const formattedResult = formatShiftDatesTimes(result);
+
+      return { success: true, data: formattedResult };
+    } catch (e) {
+      console.error('Confirm shift transaction failed:', e);
+      if (e instanceof ResourceNotFoundError) {
+        throw e;
+      }
+      throw new TransactionFailedError('shift confirmation');
+    }
+  },
+
+  /**
+   * Bulk confirm shifts for a requirement
+   */
+  async bulkConfirmShifts(
+    requirement_id: number,
+    company_id: number,
+    user_id: number
+  ) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // Verify requirement exists and belongs to company
+        const requirement = await tx.shift_requirement.findFirst({
+          where: {
+            id: requirement_id,
+            company_id,
+            deleted_at: null,
+          },
+        });
+
+        if (!requirement) {
+          throw new ResourceNotFoundError('shift_requirement', requirement_id);
+        }
+
+        // Find all pending shifts for positions in this requirement
+        const pendingShifts = await tx.shift.findMany({
+          where: {
+            position: {
+              requirement_id,
+            },
+            status: 'pending',
+            deleted_at: null,
+          },
+          include: {
+            position: {
+              select: {
+                id: true,
+                requirement_id: true,
+              },
+            },
+          },
+        });
+
+        // Confirm all shifts
+        const confirmed = await tx.shift.updateMany({
+          where: {
+            position: {
+              requirement_id,
+            },
+            status: 'pending',
+            deleted_at: null,
+          },
+          data: {
+            status: 'confirmed',
+            confirmed_by: user_id,
+            confirmed_at: new Date(),
+          },
+        });
+
+        // Increment filled counts for each position
+        for (const shift of pendingShifts) {
+          if (shift.position) {
+            await shift_requirement_position_service.incrementFilledCount(
+              shift.position.id,
+              company_id
+            );
+          }
+        }
+
+        // Update requirement status
+        await shift_requirement_position_service.updateRequirementStatus(
+          requirement_id,
+          company_id
+        );
+
+        // Create audit log
+        await tx.audit_log.create({
+          data: {
+            user_id,
+            company_id,
+            action: 'BULK_UPDATE',
+            entity_type: 'shift_confirmation_batch',
+            entity_id: requirement_id,
+            new_values: {
+              requirement_id,
+              confirmed_count: confirmed.count,
+              status: 'confirmed',
+            },
+          },
+        });
+
+        return {
+          confirmed_count: confirmed.count,
+          shifts: pendingShifts,
+        };
+      });
+
+      return { success: true, data: result };
+    } catch (e) {
+      console.error('Bulk confirm shifts transaction failed:', e);
+      if (e instanceof ResourceNotFoundError) {
+        throw e;
+      }
+      throw new TransactionFailedError('bulk shift confirmation');
     }
   },
 };

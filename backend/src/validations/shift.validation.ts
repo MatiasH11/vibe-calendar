@@ -37,11 +37,11 @@ const timeSchema = z.string()
  * Shift status enum
  *
  * Matches Prisma shift_status enum:
- * - draft: Shift is being planned
+ * - pending: Shift is pending assignment confirmation
  * - confirmed: Shift is confirmed
  * - cancelled: Shift has been cancelled
  */
-const shiftStatusEnum = z.enum(['draft', 'confirmed', 'cancelled']);
+const shiftStatusEnum = z.enum(['pending', 'confirmed', 'cancelled']);
 
 /**
  * Create shift schema
@@ -55,8 +55,9 @@ export const create_shift_schema = z.object({
   shift_date: dateSchema,
   start_time: timeSchema,
   end_time: timeSchema,
+  position_id: z.number().int().optional(),
   notes: z.string().optional(),
-  status: shiftStatusEnum.optional().default('confirmed'),
+  status: shiftStatusEnum.optional().default('pending'),
 }).refine((data) => data.start_time !== data.end_time, {
   message: "Start time and end time cannot be the same",
   path: ["end_time"],
@@ -73,6 +74,9 @@ export const update_shift_schema = z.object({
   shift_date: dateSchema.optional(),
   start_time: timeSchema.optional(),
   end_time: timeSchema.optional(),
+  position_id: z.number().int().optional(),
+  confirmed_by: z.number().int().optional(),
+  confirmed_at: z.string().datetime().optional(),
   notes: z.string().optional(),
   status: shiftStatusEnum.optional(),
 }).refine((data) => {

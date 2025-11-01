@@ -22,6 +22,7 @@ export const create_employee_schema = z.object({
   user_id: z.number().int().positive('User ID is required'),
   location_id: z.number().int().positive('Location ID is required'),
   department_id: z.number().int().positive('Department ID is required'),
+  job_position_id: z.number().int().positive('Job Position ID must be valid').optional(),
   company_role: z.enum(['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE']).default('EMPLOYEE'),
   position: z.string().optional(),
   is_active: z.boolean().default(true),
@@ -30,6 +31,7 @@ export const create_employee_schema = z.object({
 // Update employee schema (all fields optional)
 export const update_employee_schema = z.object({
   department_id: z.number().int().positive('Department ID must be valid').optional(),
+  job_position_id: z.number().int().positive('Job Position ID must be valid').optional(),
   company_role: z.enum(['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE']).optional(),
   position: z.string().optional(),
   is_active: z.boolean().optional(),

@@ -25,6 +25,9 @@ const swaggerDefinition = {
     { name: 'employee', description: 'Employee management endpoints' },
     { name: 'shift', description: 'Shift management endpoints' },
     { name: 'shift_template', description: 'Shift template endpoints' },
+    { name: 'job_position', description: 'Job position management endpoints' },
+    { name: 'scheduling_batch', description: 'Scheduling batch management endpoints' },
+    { name: 'shift_requirement', description: 'Shift requirement management endpoints' },
   ],
   components: {
     securitySchemes: {
