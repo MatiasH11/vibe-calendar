@@ -10,7 +10,6 @@ import { UserInfo } from './UserInfo';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
-  Users, 
   Calendar, 
   BarChart3, 
   Settings,
@@ -25,12 +24,6 @@ const navigationItems = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     href: '/dashboard',
-  },
-  {
-    id: 'empleados',
-    label: 'Empleados',
-    icon: Users,
-    href: '/dashboard/empleados',
   },
   {
     id: 'turnos',
@@ -55,7 +48,7 @@ const navigationItems = [
 export function Sidebar() {
   const { sidebarCollapsed, setSidebarCollapsed, isMobile, sidebarOpen, setSidebarOpen } = useDashboard();
   const { user } = useAuth();
-  const { canManageShifts, canManageEmployees, canViewStatistics, businessRole } = usePermissions();
+  const { canManageShifts, canViewStatistics, businessRole } = usePermissions();
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -170,7 +163,6 @@ export function Sidebar() {
               
               // Verificar permisos específicos
               if (item.id === 'turnos') return canManageShifts;
-              if (item.id === 'empleados') return canManageEmployees;
               if (item.id === 'reportes') return canViewStatistics;
               
               return true;
