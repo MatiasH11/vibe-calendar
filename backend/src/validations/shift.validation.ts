@@ -55,7 +55,6 @@ export const create_shift_schema = z.object({
   shift_date: dateSchema,
   start_time: timeSchema,
   end_time: timeSchema,
-  position_id: z.number().int().optional(),
   notes: z.string().optional(),
   status: shiftStatusEnum.optional().default('pending'),
 }).refine((data) => data.start_time !== data.end_time, {
@@ -74,7 +73,6 @@ export const update_shift_schema = z.object({
   shift_date: dateSchema.optional(),
   start_time: timeSchema.optional(),
   end_time: timeSchema.optional(),
-  position_id: z.number().int().optional(),
   confirmed_by: z.number().int().optional(),
   confirmed_at: z.string().datetime().optional(),
   notes: z.string().optional(),

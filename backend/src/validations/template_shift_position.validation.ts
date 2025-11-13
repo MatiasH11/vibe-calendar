@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 // Create template_shift_position schema
 export const create_template_shift_position_schema = z.object({
-  required_count: z.number().int(),
+  template_shift_id: z.number().int().positive(),
+  job_position_id: z.number().int().positive(),
+  required_count: z.number().int().positive().default(1),
 });
 
 // Update template_shift_position schema (all fields optional)

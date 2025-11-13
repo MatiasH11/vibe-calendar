@@ -3,6 +3,7 @@ import { user_type } from '@prisma/client';
 export interface jwt_payload {
   user_id: number;
   company_id: number;
+  admin_company_id: number; // Company ID for admin operations
   employee_id: number; // ID de la tabla company_employees
   role_id: number;
   role_name: string;        // Rol de negocio: "Admin", "Vendedor", etc.

@@ -27,7 +27,16 @@ Interactive API docs available at: `http://localhost:3001/api/docs`
 
 ## Core Features
 
-### Template-Based Shift Management (Phase 4)
+### Shift Management Systems
+
+Vibe Calendar maneja turnos mediante dos sistemas complementarios:
+
+#### 1. Sistema de Shifts (Actual - En producción)
+- Gestión individual de turnos
+- Usado activamente por el frontend
+- Endpoints: `/api/v1/shift`
+
+#### 2. Template-Based Shift Assignment (Phase 4 - Sistema nuevo)
 
 #### Day Templates
 Reusable daily shift schedules that define:
@@ -341,6 +350,14 @@ Every operation creates an audit log entry with:
 - Consider Redis caching for company_settings if scaling
 
 ## Changelog
+
+### 2025-11-13: Cleanup deprecated scheduling system
+- ❌ Removed: `scheduling_batch`, `scheduling_template` (deprecated batch system)
+- ❌ Removed: `shift_requirement`, `shift_requirement_position` (deprecated requirements)
+- ❌ Removed: `shift_template` (old template system, replaced by `template_shift`)
+- ❌ Removed: 13 backend files (routes, controllers, services, validations)
+- ✅ Kept: Active `shift` system (used by frontend)
+- ✅ Kept: Phase 4 system (`day_template`, `template_shift`, `shift_assignment`)
 
 ### Phase 4 (2025-11-11)
 - ✅ Day template management

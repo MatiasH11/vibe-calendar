@@ -22,11 +22,7 @@ model company {
   locations               location[]
   departments             department[]
   employees               employee[]
-  shift_templates         shift_template[]
-  scheduling_templates    scheduling_template[]
   job_positions           job_position[]
-  scheduling_batches      scheduling_batch[]
-  shift_requirements      shift_requirement[]
   day_templates           day_template[]
   shift_assignments       shift_assignment[]
 }
@@ -44,11 +40,8 @@ model user {
   is_active                           Boolean          @default(true)
   audit_logs                          audit_log[]
   employees                           employee[]
-  created_shift_templates             shift_template[]
-  created_scheduling_templates        scheduling_template[] @relation("scheduling_template_created_by")
   shifts_assigned                     shift[]          @relation("shift_assigned_by")
   shifts_confirmed                    shift[]          @relation("shift_confirmed_by")
-  batches_created                     scheduling_batch[]
   created_day_templates               day_template[]
   shift_assignments_created           shift_assignment[] @relation("shift_assignment_assigned_by")
   shift_assignments_confirmed         shift_assignment[] @relation("shift_assignment_confirmed_by")
@@ -72,9 +65,6 @@ model location {
   departments         department[]
   employees           employee[]
   shifts              shift[]
-  scheduling_batches  scheduling_batch[]
-  shift_requirements  shift_requirement[]
-  scheduling_templates scheduling_template[]
   day_templates       day_template[]
   shift_assignments   shift_assignment[]      @relation("shift_assignment_location")
 
@@ -97,7 +87,6 @@ model department {
   company     company    @relation(fields: [company_id], references: [id], onDelete: Cascade)
   employees   employee[]
   job_positions job_position[]
-  shift_requirements shift_requirement[]
 
   @@unique([location_id, name])
   @@index([location_id, deleted_at], map: "idx_department_location_deleted")
@@ -119,7 +108,6 @@ model job_position {
   company                     company                         @relation(fields: [company_id], references: [id], onDelete: Cascade)
   department                  department                      @relation(fields: [department_id], references: [id], onDelete: Cascade)
   employees                   employee[]
-  position_requirements       shift_requirement_position[]
   template_position_requirements template_shift_position[]   @relation("template_position_requirements")
   shift_assignments           shift_assignment[]             @relation("shift_assignment_position")
 
@@ -164,7 +152,6 @@ model shift {
   id          Int          @id @default(autoincrement())
   employee_id Int
   location_id Int
-  position_id Int?
   shift_date  DateTime     @db.Date
   start_time  DateTime     @db.Time(6)
   end_time    DateTime     @db.Time(6)
@@ -178,7 +165,6 @@ model shift {
   deleted_at  DateTime?
   employee    employee     @relation(fields: [employee_id], references: [id], onDelete: Cascade)
   location    location     @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  position    shift_requirement_position? @relation(fields: [position_id], references: [id], onDelete: SetNull)
   assigned_user user?       @relation("shift_assigned_by", fields: [assigned_by], references: [id], onDelete: SetNull)
   confirmed_user user?      @relation("shift_confirmed_by", fields: [confirmed_by], references: [id], onDelete: SetNull)
 
@@ -189,52 +175,8 @@ model shift {
   @@index([employee_id, location_id, shift_date], map: "idx_shift_employee_location_date")
   @@index([employee_id, status, deleted_at], map: "idx_shift_employee_status_deleted")
   @@index([shift_date, start_time, deleted_at], map: "idx_shift_date_time_deleted")
-  @@index([position_id, status])
 }
 
-model shift_template {
-  id              Int       @id @default(autoincrement())
-  company_id      Int
-  name            String    @db.VarChar(100)
-  description     String?
-  start_time      DateTime  @db.Time(6)
-  end_time        DateTime  @db.Time(6)
-  usage_count     Int       @default(0)
-  created_by      Int?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
-  deleted_at      DateTime?
-  company         company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  created_by_user user?     @relation(fields: [created_by], references: [id])
-
-  @@unique([company_id, name])
-  @@index([company_id, deleted_at], map: "idx_shift_template_company_deleted")
-  @@index([company_id, usage_count(sort: Desc)], map: "idx_shift_template_usage")
-  @@index([company_id, name, deleted_at], map: "idx_shift_template_name_search")
-}
-
-model scheduling_template {
-  id              Int          @id @default(autoincrement())
-  company_id      Int
-  location_id     Int?
-  name            String       @db.VarChar(100)
-  description     String?
-  days_pattern    Json
-  is_active       Boolean      @default(true)
-  created_by      Int?
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @updatedAt
-  deleted_at      DateTime?
-
-  company         company                @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  location        location?              @relation(fields: [location_id], references: [id], onDelete: SetNull)
-  created_by_user user?                  @relation("scheduling_template_created_by", fields: [created_by], references: [id], onDelete: SetNull)
-  scheduling_batches scheduling_batch[]
-
-  @@unique([company_id, name])
-  @@index([company_id, deleted_at])
-  @@index([location_id, deleted_at])
-}
 
 model employee_shift_pattern {
   id              Int      @id @default(autoincrement())
@@ -288,92 +230,11 @@ model company_settings {
   @@index([company_id], map: "idx_company_settings_company")
 }
 
-model scheduling_batch {
-  id              Int                  @id @default(autoincrement())
-  company_id      Int
-  location_id     Int
-  template_id     Int
-  period_type     String               // "week", "biweekly", "monthly"
-  start_date      DateTime             @db.Date
-  end_date        DateTime             @db.Date
-  name            String
-  status          batch_status         @default(draft)
-  created_by      Int
-  created_at      DateTime             @default(now())
-  updated_at      DateTime             @updatedAt
-  deleted_at      DateTime?
-
-  company         company              @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  location        location             @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  template        scheduling_template  @relation(fields: [template_id], references: [id], onDelete: Cascade)
-  created_user    user                 @relation(fields: [created_by], references: [id], onDelete: SetNull)
-  requirements    shift_requirement[]
-
-  @@index([company_id, start_date])
-  @@index([status, location_id])
-}
-
-model shift_requirement {
-  id              Int          @id @default(autoincrement())
-  company_id      Int
-  location_id     Int
-  department_id   Int
-  batch_id        Int?
-  shift_date      DateTime     @db.Date
-  start_time      DateTime     @db.Time(6)
-  end_time        DateTime     @db.Time(6)
-  status          requirement_status @default(open)
-  notes           String?
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @updatedAt
-  deleted_at      DateTime?
-
-  company         company                      @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  location        location                     @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  department      department                   @relation(fields: [department_id], references: [id])
-  batch           scheduling_batch?            @relation(fields: [batch_id], references: [id], onDelete: SetNull)
-  positions       shift_requirement_position[]
-
-  @@index([batch_id])
-  @@index([company_id, shift_date])
-  @@index([location_id, shift_date, deleted_at])
-}
-
-model shift_requirement_position {
-  id              Int          @id @default(autoincrement())
-  requirement_id  Int
-  job_position_id Int
-  required_count  Int
-  filled_count    Int          @default(0)
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @updatedAt
-
-  requirement     shift_requirement @relation(fields: [requirement_id], references: [id], onDelete: Cascade)
-  job_position    job_position      @relation(fields: [job_position_id], references: [id], onDelete: Cascade)
-  shifts          shift[]
-
-  @@unique([requirement_id, job_position_id])
-  @@index([requirement_id])
-}
 
 enum shift_status {
   pending
   confirmed
   cancelled
-}
-
-enum requirement_status {
-  open
-  partial
-  filled
-  cancelled
-}
-
-enum batch_status {
-  draft
-  approved
-  published
-  finalized
 }
 
 enum company_role {
@@ -439,6 +300,7 @@ model template_shift {
   sort_order                  Int                         @default(0)
   created_at                  DateTime                    @default(now())
   updated_at                  DateTime                    @updatedAt
+  deleted_at                  DateTime?
 
   day_template                day_template                @relation(fields: [day_template_id], references: [id], onDelete: Cascade)
   position_requirements       template_shift_position[]
@@ -449,11 +311,13 @@ model template_shift {
 
 model template_shift_position {
   id                  Int                 @id @default(autoincrement())
+  company_id          Int
   template_shift_id   Int
   job_position_id     Int
   required_count      Int                 @default(1)
   created_at          DateTime            @default(now())
   updated_at          DateTime            @updatedAt
+  deleted_at          DateTime?
 
   template_shift      template_shift      @relation(fields: [template_shift_id], references: [id], onDelete: Cascade)
   job_position        job_position        @relation("template_position_requirements", fields: [job_position_id], references: [id], onDelete: Cascade)
