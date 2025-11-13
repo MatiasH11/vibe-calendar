@@ -10,5 +10,7 @@ export {
   TransactionFailedError,
   ResourceNotFoundError,
   UnauthorizedCompanyAccessError,
+  ShiftConflictError,
+  BusinessRuleViolationError,
 } from './auth-errors';
 

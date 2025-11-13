@@ -8,68 +8,75 @@ datasource db {
 }
 
 model company {
-  id              Int               @id @default(autoincrement())
-  name            String
-  business_name   String?
-  email           String            @unique
-  phone           String?
-  is_active       Boolean           @default(true)
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
-  deleted_at      DateTime?
-  audit_logs      audit_log[]
-  settings        company_settings?
-  locations       location[]
-  departments     department[]
-  employees       employee[]
-  shift_templates shift_template[]
-  scheduling_templates scheduling_template[]
-  job_positions   job_position[]
-  scheduling_batches scheduling_batch[]
-  shift_requirements shift_requirement[]
+  id                      Int               @id @default(autoincrement())
+  name                    String
+  business_name           String?
+  email                   String            @unique
+  phone                   String?
+  is_active               Boolean           @default(true)
+  created_at              DateTime          @default(now())
+  updated_at              DateTime          @updatedAt
+  deleted_at              DateTime?
+  audit_logs              audit_log[]
+  settings                company_settings?
+  locations               location[]
+  departments             department[]
+  employees               employee[]
+  shift_templates         shift_template[]
+  scheduling_templates    scheduling_template[]
+  job_positions           job_position[]
+  scheduling_batches      scheduling_batch[]
+  shift_requirements      shift_requirement[]
+  day_templates           day_template[]
+  shift_assignments       shift_assignment[]
 }
 
 model user {
-  id                          Int              @id @default(autoincrement())
-  first_name                  String
-  last_name                   String
-  email                       String           @unique
-  password_hash               String
-  created_at                  DateTime         @default(now())
-  updated_at                  DateTime         @updatedAt
-  deleted_at                  DateTime?
-  user_type                   user_type        @default(USER)
-  is_active                   Boolean          @default(true)
-  audit_logs                  audit_log[]
-  employees                   employee[]
-  created_shift_templates     shift_template[]
-  created_scheduling_templates scheduling_template[] @relation("scheduling_template_created_by")
-  shifts_assigned             shift[]          @relation("shift_assigned_by")
-  shifts_confirmed            shift[]          @relation("shift_confirmed_by")
-  batches_created             scheduling_batch[]
+  id                                  Int              @id @default(autoincrement())
+  first_name                          String
+  last_name                           String
+  email                               String           @unique
+  password_hash                       String
+  created_at                          DateTime         @default(now())
+  updated_at                          DateTime         @updatedAt
+  deleted_at                          DateTime?
+  user_type                           user_type        @default(USER)
+  is_active                           Boolean          @default(true)
+  audit_logs                          audit_log[]
+  employees                           employee[]
+  created_shift_templates             shift_template[]
+  created_scheduling_templates        scheduling_template[] @relation("scheduling_template_created_by")
+  shifts_assigned                     shift[]          @relation("shift_assigned_by")
+  shifts_confirmed                    shift[]          @relation("shift_confirmed_by")
+  batches_created                     scheduling_batch[]
+  created_day_templates               day_template[]
+  shift_assignments_created           shift_assignment[] @relation("shift_assignment_assigned_by")
+  shift_assignments_confirmed         shift_assignment[] @relation("shift_assignment_confirmed_by")
 
   @@index([email, deleted_at], map: "idx_user_email_deleted")
   @@index([user_type, is_active, deleted_at], map: "idx_user_type_active")
 }
 
 model location {
-  id          Int        @id @default(autoincrement())
-  company_id  Int
-  name        String
-  address     String?
-  city        String?
-  phone       String?
-  is_active   Boolean    @default(true)
-  created_at  DateTime   @default(now())
-  updated_at  DateTime   @updatedAt
-  deleted_at  DateTime?
-  company     company    @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  departments department[]
-  employees   employee[]
-  shifts      shift[]
-  scheduling_batches scheduling_batch[]
-  shift_requirements shift_requirement[]
+  id                  Int                @id @default(autoincrement())
+  company_id          Int
+  name                String
+  address             String?
+  city                String?
+  phone               String?
+  is_active           Boolean            @default(true)
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  deleted_at          DateTime?
+  company             company            @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  departments         department[]
+  employees           employee[]
+  shifts              shift[]
+  scheduling_batches  scheduling_batch[]
+  shift_requirements  shift_requirement[]
   scheduling_templates scheduling_template[]
+  day_templates       day_template[]
+  shift_assignments   shift_assignment[]      @relation("shift_assignment_location")
 
   @@unique([company_id, name])
   @@index([company_id, deleted_at], map: "idx_location_company_deleted")
@@ -98,21 +105,23 @@ model department {
 }
 
 model job_position {
-  id              Int          @id @default(autoincrement())
-  company_id      Int
-  name            String
-  description     String?
-  department_id   Int
-  color           String?
-  is_active       Boolean      @default(true)
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @updatedAt
-  deleted_at      DateTime?
+  id                          Int                             @id @default(autoincrement())
+  company_id                  Int
+  name                        String
+  description                 String?
+  department_id               Int
+  color                       String?
+  is_active                   Boolean                         @default(true)
+  created_at                  DateTime                        @default(now())
+  updated_at                  DateTime                        @updatedAt
+  deleted_at                  DateTime?
 
-  company         company      @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  department      department   @relation(fields: [department_id], references: [id], onDelete: Cascade)
-  employees       employee[]
-  position_requirements shift_requirement_position[]
+  company                     company                         @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  department                  department                      @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  employees                   employee[]
+  position_requirements       shift_requirement_position[]
+  template_position_requirements template_shift_position[]   @relation("template_position_requirements")
+  shift_assignments           shift_assignment[]             @relation("shift_assignment_position")
 
   @@unique([company_id, department_id, name])
   @@index([company_id, deleted_at])
@@ -120,25 +129,26 @@ model job_position {
 }
 
 model employee {
-  id             Int                      @id @default(autoincrement())
-  company_id     Int
-  location_id    Int
-  user_id        Int
-  department_id  Int
+  id              Int                      @id @default(autoincrement())
+  company_id      Int
+  location_id     Int
+  user_id         Int
+  department_id   Int
   job_position_id Int?
-  company_role   company_role             @default(EMPLOYEE)
-  position       String?
-  is_active      Boolean                  @default(true)
-  created_at     DateTime                 @default(now())
-  updated_at     DateTime                 @updatedAt
-  deleted_at     DateTime?
-  company        company                  @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  location       location                 @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  department     department               @relation(fields: [department_id], references: [id])
-  user           user                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  job_position   job_position?            @relation(fields: [job_position_id], references: [id], onDelete: SetNull)
-  shift_patterns employee_shift_pattern[]
-  shifts         shift[]
+  company_role    company_role             @default(EMPLOYEE)
+  position        String?
+  is_active       Boolean                  @default(true)
+  created_at      DateTime                 @default(now())
+  updated_at      DateTime                 @updatedAt
+  deleted_at      DateTime?
+  company         company                  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  location        location                 @relation(fields: [location_id], references: [id], onDelete: Cascade)
+  department      department               @relation(fields: [department_id], references: [id])
+  user            user                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  job_position    job_position?            @relation(fields: [job_position_id], references: [id], onDelete: SetNull)
+  shift_patterns  employee_shift_pattern[]
+  shifts          shift[]
+  shift_assignments shift_assignment[]     @relation("shift_assignment_employee")
 
   @@unique([company_id, user_id])
   @@index([company_id, deleted_at, is_active], map: "idx_employee_company_active")
@@ -389,4 +399,102 @@ enum audit_action {
   BULK_CREATE
   BULK_UPDATE
   BULK_DELETE
+}
+
+enum assignment_status {
+  pending
+  confirmed
+  cancelled
+}
+
+model day_template {
+  id              Int                       @id @default(autoincrement())
+  company_id      Int
+  location_id     Int?
+  name            String                    @db.VarChar(100)
+  description     String?
+  is_active       Boolean                   @default(true)
+  created_by      Int?
+  created_at      DateTime                  @default(now())
+  updated_at      DateTime                  @updatedAt
+  deleted_at      DateTime?
+
+  company         company                   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  location        location?                 @relation(fields: [location_id], references: [id], onDelete: SetNull)
+  created_by_user user?                     @relation(fields: [created_by], references: [id], onDelete: SetNull)
+  template_shifts template_shift[]
+
+  @@unique([company_id, name])
+  @@index([company_id, is_active, deleted_at], map: "idx_day_template_company_active")
+  @@index([location_id, deleted_at], map: "idx_day_template_location_deleted")
+}
+
+model template_shift {
+  id                          Int                         @id @default(autoincrement())
+  day_template_id             Int
+  name                        String?                     @db.VarChar(100)
+  start_time                  String                      @db.VarChar(5)
+  end_time                    String                      @db.VarChar(5)
+  color                       String?                     @default("#3B82F6")
+  sort_order                  Int                         @default(0)
+  created_at                  DateTime                    @default(now())
+  updated_at                  DateTime                    @updatedAt
+
+  day_template                day_template                @relation(fields: [day_template_id], references: [id], onDelete: Cascade)
+  position_requirements       template_shift_position[]
+  shift_assignments           shift_assignment[]
+
+  @@index([day_template_id, sort_order], map: "idx_template_shift_order")
+}
+
+model template_shift_position {
+  id                  Int                 @id @default(autoincrement())
+  template_shift_id   Int
+  job_position_id     Int
+  required_count      Int                 @default(1)
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+
+  template_shift      template_shift      @relation(fields: [template_shift_id], references: [id], onDelete: Cascade)
+  job_position        job_position        @relation("template_position_requirements", fields: [job_position_id], references: [id], onDelete: Cascade)
+
+  @@unique([template_shift_id, job_position_id])
+  @@index([template_shift_id], map: "idx_template_shift_position_shift")
+  @@index([job_position_id], map: "idx_template_shift_position_job")
+}
+
+model shift_assignment {
+  id                  Int                 @id @default(autoincrement())
+  company_id          Int
+  location_id         Int
+  employee_id         Int
+  job_position_id     Int
+  template_shift_id   Int?
+  shift_date          String              @db.VarChar(10)
+  start_time          String              @db.VarChar(5)
+  end_time            String              @db.VarChar(5)
+  status              assignment_status   @default(pending)
+  notes               String?
+  assigned_by         Int?
+  confirmed_by        Int?
+  confirmed_at        DateTime?
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+  deleted_at          DateTime?
+
+  company             company             @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  location            location            @relation("shift_assignment_location", fields: [location_id], references: [id], onDelete: Cascade)
+  employee            employee            @relation("shift_assignment_employee", fields: [employee_id], references: [id], onDelete: Cascade)
+  job_position        job_position        @relation("shift_assignment_position", fields: [job_position_id], references: [id], onDelete: Cascade)
+  template_shift      template_shift?     @relation(fields: [template_shift_id], references: [id], onDelete: SetNull)
+  assigned_user       user?               @relation("shift_assignment_assigned_by", fields: [assigned_by], references: [id], onDelete: SetNull)
+  confirmed_user      user?               @relation("shift_assignment_confirmed_by", fields: [confirmed_by], references: [id], onDelete: SetNull)
+
+  @@index([company_id, shift_date, deleted_at], map: "idx_assignment_company_date")
+  @@index([location_id, shift_date, deleted_at], map: "idx_assignment_location_date")
+  @@index([employee_id, shift_date, deleted_at], map: "idx_assignment_employee_date")
+  @@index([employee_id, status, deleted_at], map: "idx_assignment_employee_status")
+  @@index([shift_date, start_time, deleted_at], map: "idx_assignment_date_time")
+  @@index([template_shift_id], map: "idx_assignment_template_shift")
+  @@index([job_position_id], map: "idx_assignment_job_position")
 }

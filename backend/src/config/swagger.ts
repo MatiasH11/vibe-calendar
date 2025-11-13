@@ -28,6 +28,10 @@ const swaggerDefinition = {
     { name: 'job_position', description: 'Job position management endpoints' },
     { name: 'scheduling_batch', description: 'Scheduling batch management endpoints' },
     { name: 'shift_requirement', description: 'Shift requirement management endpoints' },
+    { name: 'day_template', description: 'Day template management (shift schedules)' },
+    { name: 'template_shift', description: 'Template shift details with time and requirements' },
+    { name: 'template_shift_position', description: 'Position requirements for template shifts' },
+    { name: 'shift_assignment', description: 'Shift assignments with validation and confirmation' },
   ],
   components: {
     securitySchemes: {

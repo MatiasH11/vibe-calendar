@@ -18,6 +18,10 @@ import shiftRouter from './routes/shift.routes';
 import jobPositionRouter from './routes/job_position.routes';
 import schedulingBatchRouter from './routes/scheduling_batch.routes';
 import shiftRequirementRouter from './routes/shift_requirement.routes';
+import dayTemplateRouter from './routes/day_template.routes';
+import templateShiftRouter from './routes/template_shift.routes';
+import templateShiftPositionRouter from './routes/template_shift_position.routes';
+import shiftAssignmentRouter from './routes/shift_assignment.routes';
 
 const app: Express = express();
 
@@ -70,6 +74,10 @@ app.use('/api/v1/shift', shiftRouter);
 app.use('/api/v1/job-positions', jobPositionRouter);
 app.use('/api/v1/scheduling-batches', schedulingBatchRouter);
 app.use('/api/v1/shift-requirements', shiftRequirementRouter);
+app.use('/api/v1/day-templates', dayTemplateRouter);
+app.use('/api/v1/template-shifts', templateShiftRouter);
+app.use('/api/v1/template-shift-positions', templateShiftPositionRouter);
+app.use('/api/v1/shift-assignments', shiftAssignmentRouter);
 
 // 404 Handler
 app.use('*', (req: Request, res: Response) => {

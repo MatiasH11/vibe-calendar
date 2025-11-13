@@ -26,12 +26,6 @@ const navigationItems = [
     href: '/dashboard',
   },
   {
-    id: 'turnos',
-    label: 'Turnos',
-    icon: Calendar,
-    href: '/dashboard/turnos',
-  },
-  {
     id: 'reportes',
     label: 'Reportes',
     icon: BarChart3,

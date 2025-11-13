@@ -84,3 +84,30 @@ export class UnauthorizedCompanyAccessError extends AppError {
     super(`Unauthorized access to ${resourceType}`, { resourceType, resourceId });
   }
 }
+
+/**
+ * Thrown when a shift assignment conflicts with existing shifts
+ */
+export class ShiftConflictError extends AppError {
+  readonly statusCode = HTTP_CODES.CONFLICT;
+  readonly code = 'SHIFT_CONFLICT';
+
+  constructor(employeeId: number, conflictingShiftId?: number) {
+    super('Shift assignment conflicts with existing shift', {
+      employeeId,
+      conflictingShiftId,
+    });
+  }
+}
+
+/**
+ * Thrown when a shift assignment violates business rules
+ */
+export class BusinessRuleViolationError extends AppError {
+  readonly statusCode = HTTP_CODES.BAD_REQUEST;
+  readonly code = 'BUSINESS_RULE_VIOLATION';
+
+  constructor(message: string, violations?: string[]) {
+    super(message, { violations });
+  }
+}
