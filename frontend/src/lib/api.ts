@@ -1,41 +1,392 @@
 import { LoginRequest, RegisterRequest } from '@/types/auth';
 import { ApiResponse, Role } from '@/types/api';
-import { 
-  Employee, 
-  CreateEmployeeRequest, 
-  UpdateEmployeeRequest, 
-  EmployeeFilters, 
+import {
+  Employee,
+  CreateEmployeeRequest,
+  UpdateEmployeeRequest,
+  EmployeeFilters,
   EmployeeListResponse,
-  Cargo, 
-  CreateCargoRequest, 
-  UpdateCargoRequest, 
-  CargoWithEmployees 
+  Cargo,
+  CreateCargoRequest,
+  UpdateCargoRequest,
+  CargoWithEmployees
 } from '@/types/employee';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
+// Request options interface
+export interface RequestOptions extends Omit<RequestInit, 'body'> {
+  params?: Record<string, string | number | boolean | undefined>;
+  retries?: number;
+  retryDelay?: number;
+  timeout?: number;
+  signal?: AbortSignal;
+}
+
+// Batch request interface
+export interface BatchRequest {
+  endpoint: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  data?: unknown;
+  options?: RequestOptions;
+}
+
+// Batch response interface
+export interface BatchResponse<T> {
+  results: Array<{
+    success: boolean;
+    data?: T;
+    error?: Error;
+  }>;
+  successCount: number;
+  failureCount: number;
+}
+
+// Upload result interface
+export interface UploadResult {
+  url: string;
+  filename: string;
+  size: number;
+  mimeType: string;
+}
+
 export class ApiClient {
   private baseURL: string;
   private token: string | null = null;
+  private requestLog: boolean = process.env.NODE_ENV === 'development';
 
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.loadTokenFromStorage();
   }
 
-  setToken(token: string) {
+  // Token management methods
+  setToken(token: string): void {
     this.token = token;
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth_token', token);
     }
   }
 
-  clearToken() {
+  clearToken(): void {
     this.token = null;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
     }
   }
 
+  getToken(): string | null {
+    return this.token;
+  }
+
+  isAuthenticated(): boolean {
+    return this.token !== null;
+  }
+
+  private loadTokenFromStorage(): void {
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('auth_token');
+      if (storedToken) {
+        this.token = storedToken;
+      }
+    }
+  }
+
+  // Logging helpers
+  private log(method: string, endpoint: string, data?: unknown): void {
+    if (this.requestLog) {
+      console.log(`[API] ${method} ${endpoint}`, data ? { data } : '');
+    }
+  }
+
+  private logResponse(method: string, endpoint: string, response: unknown): void {
+    if (this.requestLog) {
+      console.log(`[API] ${method} ${endpoint} ✅`, response);
+    }
+  }
+
+  private logError(method: string, endpoint: string, error: unknown): void {
+    if (error instanceof Error && !error.message.includes('404')) {
+      console.error(`[API] ${method} ${endpoint} ❌`, error);
+    }
+  }
+
+  // Core HTTP method with retry logic
+  private async requestWithRetry<T>(
+    endpoint: string,
+    options: RequestOptions = {},
+    retryCount = 0
+  ): Promise<ApiResponse<T>> {
+    const {
+      params,
+      retries = 2,
+      retryDelay = 1000,
+      timeout = 30000,
+      signal,
+      ...fetchOptions
+    } = options;
+
+    // Build URL with query params
+    let url = `${this.baseURL}${endpoint}`;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+
+    // Setup headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(fetchOptions.headers as Record<string, string>),
+    };
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...fetchOptions,
+        headers,
+        signal: signal || controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return { success: true } as ApiResponse<T>;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Retry on server errors (5xx) and specific client errors
+        const shouldRetry =
+          (response.status >= 500 || response.status === 429) &&
+          retryCount < retries;
+
+        if (shouldRetry) {
+          const delay = retryDelay * Math.pow(2, retryCount); // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.requestWithRetry<T>(endpoint, options, retryCount + 1);
+        }
+
+        throw new Error(data.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      // Retry on network errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timeout');
+      }
+
+      if (retryCount < retries && !(error instanceof Error && error.message.includes('HTTP'))) {
+        const delay = retryDelay * Math.pow(2, retryCount);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.requestWithRetry<T>(endpoint, options, retryCount + 1);
+      }
+
+      throw error;
+    }
+  }
+
+  // Core HTTP methods with generics
+  async get<T>(endpoint: string, options?: RequestOptions): Promise<ApiResponse<T>> {
+    this.log('GET', endpoint);
+    try {
+      const response = await this.requestWithRetry<T>(endpoint, {
+        ...options,
+        method: 'GET',
+      });
+      this.logResponse('GET', endpoint, response);
+      return response;
+    } catch (error) {
+      this.logError('GET', endpoint, error);
+      throw error;
+    }
+  }
+
+  async post<T>(endpoint: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+    this.log('POST', endpoint, data);
+    try {
+      const response = await this.requestWithRetry<T>(endpoint, {
+        ...options,
+        method: 'POST',
+        body: data ? JSON.stringify(data) : undefined,
+      });
+      this.logResponse('POST', endpoint, response);
+      return response;
+    } catch (error) {
+      this.logError('POST', endpoint, error);
+      throw error;
+    }
+  }
+
+  async put<T>(endpoint: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+    this.log('PUT', endpoint, data);
+    try {
+      const response = await this.requestWithRetry<T>(endpoint, {
+        ...options,
+        method: 'PUT',
+        body: data ? JSON.stringify(data) : undefined,
+      });
+      this.logResponse('PUT', endpoint, response);
+      return response;
+    } catch (error) {
+      this.logError('PUT', endpoint, error);
+      throw error;
+    }
+  }
+
+  async patch<T>(endpoint: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+    this.log('PATCH', endpoint, data);
+    try {
+      const response = await this.requestWithRetry<T>(endpoint, {
+        ...options,
+        method: 'PATCH',
+        body: data ? JSON.stringify(data) : undefined,
+      });
+      this.logResponse('PATCH', endpoint, response);
+      return response;
+    } catch (error) {
+      this.logError('PATCH', endpoint, error);
+      throw error;
+    }
+  }
+
+  async delete<T>(endpoint: string, options?: RequestOptions): Promise<ApiResponse<T>> {
+    this.log('DELETE', endpoint);
+    try {
+      const response = await this.requestWithRetry<T>(endpoint, {
+        ...options,
+        method: 'DELETE',
+      });
+      this.logResponse('DELETE', endpoint, response);
+      return response;
+    } catch (error) {
+      this.logError('DELETE', endpoint, error);
+      throw error;
+    }
+  }
+
+  // Batch operations support
+  async batch<T>(requests: BatchRequest[]): Promise<BatchResponse<T>> {
+    const results = await Promise.allSettled(
+      requests.map(({ endpoint, method = 'GET', data, options }) => {
+        switch (method) {
+          case 'GET':
+            return this.get<T>(endpoint, options);
+          case 'POST':
+            return this.post<T>(endpoint, data, options);
+          case 'PUT':
+            return this.put<T>(endpoint, data, options);
+          case 'PATCH':
+            return this.patch<T>(endpoint, data, options);
+          case 'DELETE':
+            return this.delete<T>(endpoint, options);
+          default:
+            throw new Error(`Unsupported method: ${method}`);
+        }
+      })
+    );
+
+    let successCount = 0;
+    let failureCount = 0;
+
+    const processedResults = results.map(result => {
+      if (result.status === 'fulfilled') {
+        successCount++;
+        return {
+          success: true,
+          data: result.value.data as T,
+        };
+      } else {
+        failureCount++;
+        return {
+          success: false,
+          error: result.reason as Error,
+        };
+      }
+    });
+
+    return {
+      results: processedResults,
+      successCount,
+      failureCount,
+    };
+  }
+
+  // File upload support
+  async uploadFile(
+    endpoint: string,
+    file: File,
+    metadata?: Record<string, unknown>
+  ): Promise<ApiResponse<UploadResult>> {
+    this.log('UPLOAD', endpoint, { filename: file.name, size: file.size });
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    if (metadata) {
+      Object.entries(metadata).forEach(([key, value]) => {
+        formData.append(key, String(value));
+      });
+    }
+
+    const headers: Record<string, string> = {};
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return { success: true } as ApiResponse<UploadResult>;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || `Upload failed: ${response.status}`);
+      }
+
+      this.logResponse('UPLOAD', endpoint, data);
+      return data;
+    } catch (error) {
+      this.logError('UPLOAD', endpoint, error);
+      throw error;
+    }
+  }
+
+  // Legacy request method for backward compatibility
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -46,20 +397,17 @@ export class ApiClient {
       headers.Authorization = `Bearer ${this.token}`;
     }
 
-
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...options,
         headers,
       });
 
-      // Verificar si la respuesta es JSON antes de intentar parsearla
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        // Si no es JSON pero está OK, devolver respuesta por defecto
         return { success: true } as ApiResponse<T>;
       }
 
@@ -71,7 +419,6 @@ export class ApiClient {
 
       return data;
     } catch (error) {
-      // Solo loggear errores que no sean 404 (para evitar spam en consola)
       if (error instanceof Error && !error.message.includes('404')) {
         console.error('❌ API Request failed:', error);
       }

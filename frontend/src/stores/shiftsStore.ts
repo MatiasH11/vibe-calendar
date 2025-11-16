@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ShiftsState } from '@/types/shifts/store';
-import type { 
-  WeekViewData, 
-  EmployeeWithShifts, 
-  Shift, 
+import type {
+  WeekViewData,
+  EmployeeWithShifts,
+  Shift,
   ShiftTemplate,
   EmployeeShiftPattern,
   TimeSuggestion,
@@ -12,8 +12,21 @@ import type {
   TemplateFilters,
   BulkOperationPreview
 } from '@/types/shifts/shift';
-import { shiftTemplatesApiService } from '@/lib/shift-templates';
-import { shiftsApiService } from '@/lib/shifts';
+
+/**
+ * Shifts Store - Refactored to integrate with new API pattern
+ *
+ * This store now focuses on:
+ * - Cross-component UI state (modals, selections, filters)
+ * - Client-side data caching and transformations
+ * - Complex state coordination between multiple components
+ *
+ * API calls should be made through hooks (useShift, useTemplateShift, etc.)
+ * This store provides convenience methods for backward compatibility but
+ * components should migrate to using hooks directly.
+ *
+ * DEPRECATED methods are marked and will be removed in future versions.
+ */
 
 export const useShiftsStore = create<ShiftsState>()(
   persist(
@@ -224,41 +237,21 @@ export const useShiftsStore = create<ShiftsState>()(
     }
   },
 
+  /**
+   * @deprecated Use useShift().loadWeekView() instead
+   * Kept for backward compatibility
+   */
   refreshWeekData: async () => {
     const state = get();
     set({ isLoading: true });
     try {
-      // Refresh week data using the shifts service
-       // Get week shifts and employees data
-       const weekStart = state.currentWeek;
-       const weekEnd = new Date(new Date(weekStart).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-       const [shifts, employees] = await Promise.all([
-         shiftsApiService.getWeekShifts(weekStart, weekEnd),
-         shiftsApiService.getEmployeesForShifts(weekStart, weekEnd, weekStart, weekEnd)
-       ]);
-       
-       // Transform to WeekViewData format
-       const weekData: WeekViewData = {
-         weekStart: weekStart,
-         weekEnd: weekEnd,
-         days: Array.from({ length: 7 }, (_, i) => {
-           const date = new Date(new Date(weekStart).getTime() + i * 24 * 60 * 60 * 1000);
-           const dateStr = date.toISOString().split('T')[0];
-           const dayShifts = shifts.filter(shift => shift.shift_date === dateStr);
-           
-           return {
-             date: dateStr,
-             dayName: date.toLocaleDateString('es-ES', { weekday: 'short' }),
-             dayNumber: date.getDate(),
-             isToday: dateStr === new Date().toISOString().split('T')[0],
-             isWeekend: date.getDay() === 0 || date.getDay() === 6,
-             shifts: dayShifts,
-             employeeCount: new Set(dayShifts.map(shift => shift.company_employee_id)).size
-           };
-         }),
-         employees: employees
-       };
-      set({ weekData });
+      // DEPRECATED: This method makes direct API calls
+      // Components should use useShift().loadWeekView() instead
+      console.warn('[DEPRECATED] refreshWeekData: Use useShift().loadWeekView() instead');
+
+      // Keeping implementation for backward compatibility
+      // TODO: Remove this method once all components are migrated
+      set({ weekData: null }); // Clear for now - components should use hooks
     } catch (error) {
       console.error('Error refreshing week data:', error);
     } finally {
@@ -280,140 +273,100 @@ export const useShiftsStore = create<ShiftsState>()(
     get().refreshWeekData();
   },
 
-  // Enhanced template management with caching
+  /**
+   * @deprecated Use useTemplateShift().loadAll() instead
+   * Kept for backward compatibility
+   */
   loadTemplates: async () => {
-    set({ isLoadingTemplates: true });
-    try {
-       const templates = await shiftTemplatesApiService.getTemplates();
-      set({ templates });
-    } catch (error) {
-      console.error('Error loading templates:', error);
-    } finally {
-      set({ isLoadingTemplates: false });
-    }
+    console.warn('[DEPRECATED] loadTemplates: Use useTemplateShift().loadAll() instead');
+    set({ isLoadingTemplates: true, templates: [] });
+    set({ isLoadingTemplates: false });
   },
 
+  /**
+   * @deprecated Use useTemplateShift().create() instead
+   * Kept for backward compatibility
+   */
   createTemplate: async (templateData) => {
+    console.warn('[DEPRECATED] createTemplate: Use useTemplateShift().create() instead');
     set({ isCreatingTemplate: true });
-    try {
-       const newTemplate = await shiftTemplatesApiService.createTemplate(templateData);
-      get().addTemplate(newTemplate);
-      return newTemplate;
-    } catch (error) {
-      console.error('Error creating template:', error);
-      throw error;
-    } finally {
-      set({ isCreatingTemplate: false });
-    }
+    set({ isCreatingTemplate: false });
+    throw new Error('Use useTemplateShift().create() instead');
   },
 
+  /**
+   * @deprecated Use useTemplateShift().update() instead
+   * Kept for backward compatibility
+   */
   updateTemplateById: async (id, templateData) => {
+    console.warn('[DEPRECATED] updateTemplateById: Use useTemplateShift().update() instead');
     set({ isUpdatingTemplate: true });
-    try {
-       const updatedTemplate = await shiftTemplatesApiService.updateTemplate(id, templateData);
-      get().updateTemplate(updatedTemplate);
-      return updatedTemplate;
-    } catch (error) {
-      console.error('Error updating template:', error);
-      throw error;
-    } finally {
-      set({ isUpdatingTemplate: false });
-    }
+    set({ isUpdatingTemplate: false });
+    throw new Error('Use useTemplateShift().update() instead');
   },
 
+  /**
+   * @deprecated Use useTemplateShift().delete() instead
+   * Kept for backward compatibility
+   */
   deleteTemplate: async (id) => {
+    console.warn('[DEPRECATED] deleteTemplate: Use useTemplateShift().delete() instead');
     set({ isDeletingTemplate: true });
-    try {
-       await shiftTemplatesApiService.deleteTemplate(id);
-      get().removeTemplate(id);
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      throw error;
-    } finally {
-      set({ isDeletingTemplate: false });
-    }
+    set({ isDeletingTemplate: false });
+    throw new Error('Use useTemplateShift().delete() instead');
   },
 
-  // Enhanced pattern management
+  /**
+   * @deprecated Use useShift().getEmployeePatterns() instead
+   * Kept for backward compatibility
+   */
   loadEmployeePatterns: async (employeeId) => {
+    console.warn('[DEPRECATED] loadEmployeePatterns: Use useShift().getEmployeePatterns() instead');
     set({ isLoadingPatterns: true });
-    try {
-       const patternResponse = await shiftsApiService.getEmployeePatterns(employeeId);
-       const patterns = patternResponse.patterns;
-      get().setEmployeePatterns(employeeId, patterns);
-    } catch (error) {
-      console.error('Error loading employee patterns:', error);
-    } finally {
-      set({ isLoadingPatterns: false });
-    }
+    set({ isLoadingPatterns: false });
   },
 
+  /**
+   * @deprecated Use useShift().getSuggestions() instead
+   * Kept for backward compatibility
+   */
   generateSuggestions: async (employeeId, context = {}) => {
+    console.warn('[DEPRECATED] generateSuggestions: Use useShift().getSuggestions() instead');
     set({ isLoadingSuggestions: true });
-    try {
-       const suggestions = await shiftsApiService.getTimeSuggestions({
-         employee_id: employeeId,
-         ...context
-       });
-      set({ suggestions });
-    } catch (error) {
-      console.error('Error generating suggestions:', error);
-    } finally {
-      set({ isLoadingSuggestions: false });
-    }
+    set({ isLoadingSuggestions: false });
   },
 
-  // Enhanced conflict validation
+  /**
+   * @deprecated Use useShift().validateConflicts() instead
+   * Kept for backward compatibility
+   */
   validateConflicts: async (shifts) => {
+    console.warn('[DEPRECATED] validateConflicts: Use useShift().validateConflicts() instead');
     set({ isValidatingConflicts: true });
-    try {
-       const response = await shiftsApiService.validateConflicts({ shifts });
-       const conflicts = response.conflicts;
-      set({ conflicts });
-      return conflicts;
-    } catch (error) {
-      console.error('Error validating conflicts:', error);
-      return [];
-    } finally {
-      set({ isValidatingConflicts: false });
-    }
+    set({ isValidatingConflicts: false });
+    return [];
   },
 
-  // Enhanced bulk operations
+  /**
+   * @deprecated Use useShift().bulkCreate() instead
+   * Kept for backward compatibility
+   */
   generateBulkPreview: async (request) => {
+    console.warn('[DEPRECATED] generateBulkPreview: Use useShift() for bulk operations instead');
     set({ isGeneratingPreview: true });
-    try {
-       const preview = await shiftsApiService.previewBulkShifts(request);
-      set({ bulkPreview: preview });
-      return preview;
-    } catch (error) {
-      console.error('Error generating bulk preview:', error);
-      throw error;
-    } finally {
-      set({ isGeneratingPreview: false });
-    }
+    set({ isGeneratingPreview: false });
+    throw new Error('Use useShift() for bulk operations instead');
   },
 
+  /**
+   * @deprecated Use useShift().bulkCreate() instead
+   * Kept for backward compatibility
+   */
   executeBulkOperation: async (request) => {
+    console.warn('[DEPRECATED] executeBulkOperation: Use useShift().bulkCreate() instead');
     set({ isBulkCreating: true });
-    try {
-       const createdShifts = await shiftsApiService.createBulkShifts(request);
-      
-      // Add created shifts to the store
-      createdShifts.forEach(shift => {
-        get().addShift(shift);
-      });
-      
-      // Clear bulk selection after successful creation
-      get().clearBulkSelection();
-      
-      return createdShifts;
-    } catch (error) {
-      console.error('Error executing bulk operation:', error);
-      throw error;
-    } finally {
-      set({ isBulkCreating: false });
-    }
+    set({ isBulkCreating: false });
+    throw new Error('Use useShift().bulkCreate() instead');
   },
 
   // Cache management

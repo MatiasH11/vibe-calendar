@@ -92,15 +92,12 @@ The backend follows a layered architecture with clear separation of concerns:
 
 **Important Services:**
 - `auth.service.ts` - User authentication and registration
-- `shift.service.ts` - Complex shift management with conflict detection, bulk operations, pattern tracking
-- `shift-template.service.ts` - Reusable shift templates with caching
-- `shift_requirement.service.ts` - Shift requirements for scheduling batch operations
-- `shift_requirement_position.service.ts` - Links job positions to shift requirements
-- `scheduling_batch.service.ts` - Batch shift scheduling and automated planning
-- `job_position.service.ts` - Job positions within departments (used in shift requirements)
+- `shift.service.ts` - Complex shift management with conflict detection, bulk operations, pattern tracking (ACTIVE - used by frontend)
+- `shift_assignment.service.ts` - Template-based shift assignment system (Phase 4) with validation, conflict detection, and business rules
+- `day_template.service.ts` - Reusable day templates for shift planning
+- `template_shift.service.ts` - Shift definitions within day templates
+- `job_position.service.ts` - Job positions within departments
 - `employee.service.ts` - Employee CRUD with company-scoped access
-- `role.service.ts` - Role management per company (deprecated in favor of departments)
-- `statistics.service.ts` - Dashboard statistics and analytics
 - `audit.service.ts` - System audit logging for compliance and debugging
 
 ### Frontend Architecture
@@ -142,14 +139,13 @@ The frontend uses Next.js App Router with a component-based architecture:
 - `company` - Multi-tenant companies with locations and departments
 - `location` - Physical locations within a company
 - `department` - Departments within locations
-- `job_position` - Job positions within departments (replaces old role system)
+- `job_position` - Job positions within departments
 - `employee` - Employees linked to companies, locations, and departments
-- `shift` - Individual work shifts with date, times, and status
-- `shift_template` - Reusable shift templates with usage tracking
-- `shift_requirement` - Requirements for shifts (e.g., "need 2 nurses for 8am-4pm")
-- `shift_requirement_position` - Links job positions to shift requirements
-- `scheduling_batch` - Batch operations for automated shift scheduling
-- `scheduling_template` - Templates for batch scheduling patterns
+- `shift` - Individual work shifts with date, times, and status (ACTIVE - used by frontend)
+- `day_template` - Reusable daily shift schedules (Phase 4)
+- `template_shift` - Shifts within day templates (Phase 4)
+- `template_shift_position` - Position requirements in templates (Phase 4)
+- `shift_assignment` - Employee shift assignments with validation (Phase 4)
 - `employee_shift_pattern` - AI-powered pattern tracking for shift suggestions
 - `audit_log` - Complete audit trail of all system changes
 
@@ -197,22 +193,29 @@ The shift system is the most complex part of the application:
 - Suggestions weighted by frequency and recency
 - Used for autocomplete and quick shift creation
 
-**Batch Scheduling System:**
-The scheduling batch system enables automated mass shift assignment based on staffing requirements:
+**Template-Based Shift Assignment System (Phase 4):**
+New system for shift planning with templates and validation:
 
-- **Shift Requirements:** Define what positions need to be filled and when
-  - Specify date range, times, and required positions
-  - Set minimum/maximum number of employees per position
-  - Link to job positions that can fulfill the requirement
+- **Day Templates:** Reusable daily shift schedules
+  - Define working hours structure
+  - Specify required job positions
+  - Can be applied to multiple dates
 
-- **Scheduling Batches:** Execute bulk shift creation with:
-  - Template-based patterns (daily, weekly, monthly repeats)
-  - Conflict resolution at batch level (fail/skip/overwrite)
-  - Constraint validation before creation
-  - Audit trail of all batch operations
+- **Shift Assignments:** Employee assignments with comprehensive validation
+  - Conflict detection (overlapping shifts)
+  - Business rules validation (max hours, minimum breaks)
+  - Confirmation workflow (pending → confirmed)
+  - Bulk assignment from templates
+  - Coverage analysis by position/date
 
-- **Workflow:** Requirements → Batch Templates → Batch Execution → Shifts Created
-- See `shift_requirement.service.ts` and `scheduling_batch.service.ts` for implementation details
+- **Workflow:** Day Template → Template Shifts → Shift Assignments → Confirmation
+- See `shift_assignment.service.ts`, `day_template.service.ts`, and `template_shift.service.ts` for implementation details
+
+**⚠️ DEPRECATED AND REMOVED (2025-11-13):**
+- ❌ `scheduling_batch` - Old batch system (replaced by Phase 4)
+- ❌ `scheduling_template` - Old template system (replaced by `day_template`)
+- ❌ `shift_requirement` - Old requirements system (replaced by Phase 4 validation)
+- ❌ `shift_template` - Old shift templates (replaced by `template_shift`)
 
 ## Important Implementation Notes
 
