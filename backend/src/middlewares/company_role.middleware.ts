@@ -1,55 +1,44 @@
 import { Request, Response, NextFunction } from 'express';
-import { company_role } from '@prisma/client';
+import { user_type } from '@prisma/client';
 import { HTTP_CODES } from '../constants/http_codes';
 
 /**
- * Middleware to verify user has required company-level role
+ * Middleware to verify user has ADMIN permissions
  * Must be used after authMiddleware
  *
- * Role hierarchy (from highest to lowest):
- * OWNER > ADMIN > MANAGER > EMPLOYEE
- *
- * @param allowedRoles - Array of company_role values that are allowed to access the route
+ * Permission levels:
+ * - SUPER_ADMIN: Can access all companies
+ * - ADMIN: Can manage their own company
+ * - USER: Regular employees (cannot access admin routes)
  *
  * @example
- * // Only OWNER and ADMIN can delete locations
- * router.delete('/:id', authMiddleware, requireCompanyRole(['OWNER', 'ADMIN']), controller.delete);
- *
- * // Only OWNER can transfer ownership
- * router.post('/transfer', authMiddleware, requireCompanyRole(['OWNER']), controller.transfer);
+ * // Only ADMIN and SUPER_ADMIN can delete locations
+ * router.delete('/:id', authMiddleware, requireAdmin, controller.delete);
  */
-export const requireCompanyRole = (allowedRoles: company_role[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    // Ensure user is authenticated
-    if (!req.user) {
-      return res.status(HTTP_CODES.UNAUTHORIZED).json({
-        success: false,
-        error: {
-          error_code: 'UNAUTHORIZED',
-          message: 'Authentication required',
-        },
-      });
-    }
+export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  // Ensure user is authenticated
+  if (!req.user) {
+    return res.status(HTTP_CODES.UNAUTHORIZED).json({
+      success: false,
+      error: {
+        error_code: 'UNAUTHORIZED',
+        message: 'Authentication required',
+      },
+    });
+  }
 
-    // SUPER_ADMIN bypasses all company role checks
-    if (req.user.user_type === 'SUPER_ADMIN') {
-      return next();
-    }
-
-    // Check if user has one of the allowed company roles
-    const userRole = req.user.company_role;
-    if (!allowedRoles.includes(userRole)) {
-      return res.status(HTTP_CODES.FORBIDDEN).json({
-        success: false,
-        error: {
-          error_code: 'INSUFFICIENT_PERMISSIONS',
-          message: `This action requires one of the following roles: ${allowedRoles.join(', ')}. Your role: ${userRole}`,
-        },
-      });
-    }
-
+  // Allow SUPER_ADMIN and ADMIN
+  if (req.user.user_type === 'SUPER_ADMIN' || req.user.user_type === 'ADMIN') {
     return next();
-  };
+  }
+
+  return res.status(HTTP_CODES.FORBIDDEN).json({
+    success: false,
+    error: {
+      error_code: 'INSUFFICIENT_PERMISSIONS',
+      message: `This action requires administrator privileges. Your permission level: ${req.user.user_type}`,
+    },
+  });
 };
 
 /**

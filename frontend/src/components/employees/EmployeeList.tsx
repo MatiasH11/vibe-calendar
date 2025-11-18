@@ -169,7 +169,7 @@ export function EmployeeList({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500">
-                          {employee.job_position?.name || employee.position || '-'}
+                          {employee.job_position?.name || '-'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -187,17 +187,15 @@ export function EmployeeList({
                           className={`
                             px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
                             ${
-                              employee.company_role === 'OWNER'
+                              employee.user?.user_type === 'SUPER_ADMIN'
                                 ? 'bg-purple-100 text-purple-800'
-                                : employee.company_role === 'ADMIN'
+                                : employee.user?.user_type === 'ADMIN'
                                 ? 'bg-blue-100 text-blue-800'
-                                : employee.company_role === 'MANAGER'
-                                ? 'bg-indigo-100 text-indigo-800'
                                 : 'bg-gray-100 text-gray-800'
                             }
                           `}
                         >
-                          {employee.company_role}
+                          {employee.user?.user_type || 'USER'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

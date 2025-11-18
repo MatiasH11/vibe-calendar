@@ -123,15 +123,13 @@ model employee {
   user_id         Int
   department_id   Int
   job_position_id Int?
-  company_role    company_role             @default(EMPLOYEE)
-  position        String?
   is_active       Boolean                  @default(true)
   created_at      DateTime                 @default(now())
   updated_at      DateTime                 @updatedAt
   deleted_at      DateTime?
   company         company                  @relation(fields: [company_id], references: [id], onDelete: Cascade)
   location        location                 @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  department      department               @relation(fields: [department_id], references: [id])
+  department      department               @relation(fields: [department_id], references: [id], onDelete: Restrict)
   user            user                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   job_position    job_position?            @relation(fields: [job_position_id], references: [id], onDelete: SetNull)
   shift_patterns  employee_shift_pattern[]
@@ -142,7 +140,6 @@ model employee {
   @@index([company_id, deleted_at, is_active], map: "idx_employee_company_active")
   @@index([location_id, deleted_at], map: "idx_employee_location_deleted")
   @@index([company_id, department_id, deleted_at], map: "idx_employee_department")
-  @@index([company_id, company_role, deleted_at], map: "idx_employee_role")
   @@index([user_id, deleted_at], map: "idx_employee_user")
   @@index([company_id, user_id, deleted_at], map: "idx_employee_lookup")
   @@index([job_position_id])
@@ -237,15 +234,9 @@ enum shift_status {
   cancelled
 }
 
-enum company_role {
-  OWNER
-  ADMIN
-  MANAGER
-  EMPLOYEE
-}
-
 enum user_type {
   SUPER_ADMIN
+  ADMIN
   USER
 }
 

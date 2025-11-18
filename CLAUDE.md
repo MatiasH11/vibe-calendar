@@ -82,13 +82,18 @@ The backend follows a layered architecture with clear separation of concerns:
 - `src/config/` - Environment, Prisma client, Swagger setup
 - `prisma/` - Database schema and migrations
 
-**Authentication Flow:**
+**Authentication & Permissions:**
 1. User logs in via `/api/v1/auth/login` with email/password
 2. Backend validates credentials and returns JWT token
 3. Frontend stores token in cookie (`auth_token`)
 4. Protected routes require `Authorization: Bearer <token>` header
 5. `authMiddleware` validates JWT and attaches `req.user` payload
-6. Admin routes additionally use `adminMiddleware` to check user_type
+6. Admin routes use `requireAdmin` middleware to check `user_type`
+
+**Permission System (user_type):**
+- **SUPER_ADMIN**: Full system access, can view and manage ALL companies
+- **ADMIN**: Can manage their own company (employees, shifts, settings)
+- **USER**: Regular employee, cannot access admin routes (for future use)
 
 **Important Services:**
 - `auth.service.ts` - User authentication and registration
@@ -135,12 +140,12 @@ The frontend uses Next.js App Router with a component-based architecture:
 ### Database Schema (Prisma)
 
 **Core Models:**
-- `user` - System users with user_type (admin/employee)
+- `user` - System users with `user_type` (SUPER_ADMIN, ADMIN, USER)
 - `company` - Multi-tenant companies with locations and departments
 - `location` - Physical locations within a company
 - `department` - Departments within locations
 - `job_position` - Job positions within departments
-- `employee` - Employees linked to companies, locations, and departments
+- `employee` - Links users to companies (no permission fields, permissions in `user.user_type`)
 - `shift` - Individual work shifts with date, times, and status (ACTIVE - used by frontend)
 - `day_template` - Reusable daily shift schedules (Phase 4)
 - `template_shift` - Shifts within day templates (Phase 4)

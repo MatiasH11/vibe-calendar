@@ -34,12 +34,12 @@ export const employee_service = {
       where.company_id = company_id;
     }
 
-    // Add search filter (search in user's name or position)
+    // Add search filter (search in user's name or job position name)
     if (filters.search) {
       where.OR = [
-        { position: { contains: filters.search, mode: 'insensitive' } },
         { user: { first_name: { contains: filters.search, mode: 'insensitive' } } },
         { user: { last_name: { contains: filters.search, mode: 'insensitive' } } },
+        { job_position: { name: { contains: filters.search, mode: 'insensitive' } } },
       ];
     }
 
@@ -92,6 +92,13 @@ export const employee_service = {
         },
       },
       department: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+        },
+      },
+      job_position: {
         select: {
           id: true,
           name: true,

@@ -61,14 +61,14 @@ export const auth_service = {
           },
         });
 
-        // 3. Create user (platform level - type: USER)
+        // 3. Create user with ADMIN permission (can manage their company)
         const user = await tx.user.create({
           data: {
             first_name: data.first_name,
             last_name: data.last_name,
             email: data.email,
             password_hash,
-            user_type: 'USER', // Platform-level permission (USER or SUPER_ADMIN)
+            user_type: 'ADMIN', // ADMIN = can manage their company
             is_active: true,
           },
         });
@@ -85,15 +85,13 @@ export const auth_service = {
           },
         });
 
-        // 5. Create employee record with OWNER role (company-level permission)
+        // 5. Create employee record (links user to company)
         const employee = await tx.employee.create({
           data: {
             company_id: company.id,
             location_id: defaultLocation.id,
             user_id: user.id,
             department_id: managementDepartment.id,
-            company_role: 'OWNER', // Company-level permission (OWNER, ADMIN, MANAGER, EMPLOYEE)
-            position: 'Owner',
             is_active: true,
           },
         });
@@ -131,7 +129,7 @@ export const auth_service = {
               action: 'CREATE',
               entity_type: 'employee',
               entity_id: employee.id,
-              new_values: { company_role: employee.company_role, position: employee.position },
+              new_values: { user_type: user.user_type },
             },
           ],
         });
@@ -193,9 +191,8 @@ export const auth_service = {
     const payload = {
       user_id: user.id,
       employee_id: employee.id,
-      company_id: employee.company_id, // Changed from admin_company_id to company_id for consistency
-      user_type: user.user_type, // Platform-level: SUPER_ADMIN or USER
-      company_role: employee.company_role, // Company-level: OWNER, ADMIN, MANAGER, EMPLOYEE
+      company_id: employee.company_id,
+      user_type: user.user_type, // SUPER_ADMIN, ADMIN, or USER
       email: user.email,
     };
 
@@ -232,8 +229,6 @@ export const auth_service = {
           company_id: employee.company_id,
           company_name: employee.company.name,
           department: employee.department.name,
-          company_role: employee.company_role,
-          position: employee.position,
         },
       },
     };

@@ -14,8 +14,6 @@ export interface Employee {
   user_id: number;
   department_id: number;
   job_position_id: number | null;
-  company_role: 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
-  position: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -26,6 +24,7 @@ export interface Employee {
     first_name: string;
     last_name: string;
     email: string;
+    user_type?: 'SUPER_ADMIN' | 'ADMIN' | 'USER';
   };
   location?: {
     id: number;
@@ -38,6 +37,7 @@ export interface Employee {
   job_position?: {
     id: number;
     name: string;
+    color?: string;
   };
   shifts?: any[]; // Shifts when include=shifts
 }
@@ -48,16 +48,12 @@ export interface CreateEmployeeInput {
   location_id: number;
   department_id: number;
   job_position_id?: number;
-  company_role?: 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
-  position?: string;
   is_active?: boolean;
 }
 
 export interface UpdateEmployeeInput {
   department_id?: number;
   job_position_id?: number;
-  company_role?: 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
-  position?: string;
   is_active?: boolean;
 }
 
