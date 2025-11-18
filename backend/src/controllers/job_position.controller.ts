@@ -12,11 +12,17 @@ import {
 export const job_position_controller = {
   /**
    * Get all job_positions
+   * SUPER_ADMIN sees all companies, USER sees only their company
    */
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const filters = job_position_filters_schema.parse(req.query);
-      const company_id = req.user!.company_id;
+
+      // SUPER_ADMIN can see all companies (company_id = undefined)
+      // USER can only see their company
+      const company_id = req.user!.user_type === 'SUPER_ADMIN'
+        ? undefined
+        : req.user!.company_id;
 
       const result = await job_position_service.getAll(company_id, filters);
       res.json(result);

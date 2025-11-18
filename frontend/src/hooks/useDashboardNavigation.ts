@@ -18,6 +18,12 @@ const navigationMap: Record<string, NavigationItem> = {
     href: '/dashboard',
     breadcrumbs: ['Dashboard'],
   },
+  '/dashboard/administracion': {
+    id: 'administracion',
+    label: 'Administration',
+    href: '/dashboard/administracion',
+    breadcrumbs: ['Dashboard', 'Administration'],
+  },
   '/dashboard/empleados': {
     id: 'empleados',
     label: 'Empleados',

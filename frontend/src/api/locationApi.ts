@@ -1,28 +1,30 @@
 /**
- * Department API Module
- * Handles department operations (CRUD, bulk operations)
+ * Location API Module
+ * Handles location operations (CRUD, bulk operations)
  */
 
 import { apiClient } from '@/lib/api';
 import { createApiError } from '@/lib/errors';
 
-// Department type based on Prisma schema
-export interface Department {
+// Location type based on Prisma schema
+export interface Location {
   id: number;
-  location_id: number;
   company_id: number;
   name: string;
-  description: string | null;
-  color: string;
+  address: string | null;
+  city: string | null;
+  phone: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
   // Relations (when included)
-  location?: {
+  departments?: Array<{
     id: number;
     name: string;
-  };
+    color: string;
+    is_active: boolean;
+  }>;
   employees?: Array<{
     id: number;
     user_id: number;
@@ -35,30 +37,26 @@ export interface Department {
       email: string;
     };
   }>;
-  job_positions?: Array<{
-    id: number;
-    name: string;
-    description: string | null;
-  }>;
 }
 
 // Input types based on backend validation schemas
-export interface CreateDepartmentInput {
-  location_id: number;
+export interface CreateLocationInput {
   name: string;
-  description?: string;
-  color?: string;
+  address?: string;
+  city?: string;
+  phone?: string;
   is_active?: boolean;
 }
 
-export interface UpdateDepartmentInput {
+export interface UpdateLocationInput {
   name?: string;
-  description?: string;
-  color?: string;
+  address?: string;
+  city?: string;
+  phone?: string;
   is_active?: boolean;
 }
 
-export interface DepartmentFilters {
+export interface LocationFilters {
   page?: string;
   limit?: string;
   search?: string;
@@ -67,13 +65,13 @@ export interface DepartmentFilters {
   sort_order?: 'asc' | 'desc';
 }
 
-export interface BulkCreateDepartmentInput {
-  items: CreateDepartmentInput[];
+export interface BulkCreateLocationInput {
+  items: CreateLocationInput[];
 }
 
 // Response types
 interface GetAllResponse {
-  items: Department[];
+  items: Location[];
   pagination: {
     page: number;
     limit: number;
@@ -94,16 +92,16 @@ interface BulkOperationResult<T = unknown> {
 }
 
 // API endpoint base
-const BASE_PATH = '/api/v1/department';
+const BASE_PATH = '/api/v1/location';
 
 /**
- * Department API
+ * Location API
  */
-export const departmentApi = {
+export const locationApi = {
   /**
-   * Get all departments with optional filters
+   * Get all locations with optional filters
    */
-  async getAll(filters?: DepartmentFilters): Promise<GetAllResponse> {
+  async getAll(filters?: LocationFilters): Promise<GetAllResponse> {
     try {
       const params: Record<string, string> = {};
 
@@ -119,7 +117,7 @@ export const departmentApi = {
       const response = await apiClient.get<GetAllResponse>(BASE_PATH, { params });
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to fetch departments');
+        throw new Error('Failed to fetch locations');
       }
 
       return response.data;
@@ -129,14 +127,14 @@ export const departmentApi = {
   },
 
   /**
-   * Get department by ID
+   * Get location by ID
    */
-  async getById(id: number): Promise<Department> {
+  async getById(id: number): Promise<Location> {
     try {
-      const response = await apiClient.get<Department>(`${BASE_PATH}/${id}`);
+      const response = await apiClient.get<Location>(`${BASE_PATH}/${id}`);
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to fetch department');
+        throw new Error('Failed to fetch location');
       }
 
       return response.data;
@@ -146,14 +144,14 @@ export const departmentApi = {
   },
 
   /**
-   * Create new department
+   * Create new location
    */
-  async create(data: CreateDepartmentInput): Promise<Department> {
+  async create(data: CreateLocationInput): Promise<Location> {
     try {
-      const response = await apiClient.post<Department>(BASE_PATH, data);
+      const response = await apiClient.post<Location>(BASE_PATH, data);
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to create department');
+        throw new Error('Failed to create location');
       }
 
       return response.data;
@@ -163,14 +161,14 @@ export const departmentApi = {
   },
 
   /**
-   * Update department
+   * Update location
    */
-  async update(id: number, data: UpdateDepartmentInput): Promise<Department> {
+  async update(id: number, data: UpdateLocationInput): Promise<Location> {
     try {
-      const response = await apiClient.put<Department>(`${BASE_PATH}/${id}`, data);
+      const response = await apiClient.put<Location>(`${BASE_PATH}/${id}`, data);
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to update department');
+        throw new Error('Failed to update location');
       }
 
       return response.data;
@@ -180,14 +178,14 @@ export const departmentApi = {
   },
 
   /**
-   * Delete department (soft delete)
+   * Delete location (soft delete)
    */
   async delete(id: number): Promise<void> {
     try {
       const response = await apiClient.delete<void>(`${BASE_PATH}/${id}`);
 
       if (!response.success) {
-        throw new Error('Failed to delete department');
+        throw new Error('Failed to delete location');
       }
     } catch (error) {
       throw createApiError(error);
@@ -195,17 +193,17 @@ export const departmentApi = {
   },
 
   /**
-   * Bulk create departments
+   * Bulk create locations
    */
-  async bulkCreate(data: BulkCreateDepartmentInput): Promise<BulkOperationResult<Department>> {
+  async bulkCreate(data: BulkCreateLocationInput): Promise<BulkOperationResult<Location>> {
     try {
-      const response = await apiClient.post<BulkOperationResult<Department>>(
+      const response = await apiClient.post<BulkOperationResult<Location>>(
         `${BASE_PATH}/bulk/create`,
         data
       );
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to bulk create departments');
+        throw new Error('Failed to bulk create locations');
       }
 
       return response.data;
@@ -215,20 +213,20 @@ export const departmentApi = {
   },
 
   /**
-   * Bulk update departments
+   * Bulk update locations
    */
   async bulkUpdate(
     ids: number[],
-    data: UpdateDepartmentInput
-  ): Promise<BulkOperationResult<Department>> {
+    data: UpdateLocationInput
+  ): Promise<BulkOperationResult<Location>> {
     try {
-      const response = await apiClient.put<BulkOperationResult<Department>>(
+      const response = await apiClient.put<BulkOperationResult<Location>>(
         `${BASE_PATH}/bulk/update`,
         { ids, data }
       );
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to bulk update departments');
+        throw new Error('Failed to bulk update locations');
       }
 
       return response.data;
@@ -238,7 +236,7 @@ export const departmentApi = {
   },
 
   /**
-   * Bulk delete departments
+   * Bulk delete locations
    */
   async bulkDelete(ids: number[]): Promise<BulkOperationResult<void>> {
     try {
@@ -250,7 +248,7 @@ export const departmentApi = {
       );
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to bulk delete departments');
+        throw new Error('Failed to bulk delete locations');
       }
 
       return response.data;
@@ -260,25 +258,25 @@ export const departmentApi = {
   },
 
   /**
-   * Get department with employees
-   * Note: This assumes the backend supports include=employees query parameter
+   * Get location with departments
+   * Note: This assumes the backend supports include=departments query parameter
    * If not implemented yet, this would need backend support
    */
-  async getWithEmployees(id: number): Promise<Department> {
+  async getWithDepartments(id: number): Promise<Location> {
     try {
-      // For now, just get the department by ID
-      // In the future, this could be enhanced with include=employees parameter
-      const department = await this.getById(id);
-      return department;
+      // For now, just get the location by ID
+      // In the future, this could be enhanced with include=departments parameter
+      const location = await this.getById(id);
+      return location;
     } catch (error) {
       throw createApiError(error);
     }
   },
 
   /**
-   * Get active departments only
+   * Get active locations only
    */
-  async getActive(filters?: Omit<DepartmentFilters, 'is_active'>): Promise<Department[]> {
+  async getActive(filters?: Omit<LocationFilters, 'is_active'>): Promise<Location[]> {
     try {
       const response = await this.getAll({
         ...filters,
@@ -292,9 +290,9 @@ export const departmentApi = {
   },
 
   /**
-   * Search departments by name
+   * Search locations by name
    */
-  async search(query: string, filters?: Omit<DepartmentFilters, 'search'>): Promise<Department[]> {
+  async search(query: string, filters?: Omit<LocationFilters, 'search'>): Promise<Location[]> {
     try {
       const response = await this.getAll({
         ...filters,
@@ -302,20 +300,6 @@ export const departmentApi = {
       });
 
       return response.items;
-    } catch (error) {
-      throw createApiError(error);
-    }
-  },
-
-  /**
-   * Get departments by location
-   */
-  async getByLocation(locationId: number, filters?: DepartmentFilters): Promise<Department[]> {
-    try {
-      // Get all departments and filter client-side by location_id
-      // In the future, this could be a backend filter
-      const response = await this.getAll(filters);
-      return response.items.filter((dept) => dept.location_id === locationId);
     } catch (error) {
       throw createApiError(error);
     }

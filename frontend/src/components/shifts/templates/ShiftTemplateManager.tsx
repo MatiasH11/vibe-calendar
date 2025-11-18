@@ -13,12 +13,18 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { 
-  Plus, 
-  Search, 
-  MoreVertical, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  MoreVertical,
+  Edit,
+  Trash2,
+  SortAsc,
+  SortDesc,
+  Clock,
+  TrendingUp,
+  Calendar,
+} from 'lucide-react';
 import { useShiftTemplates } from '@/hooks/shifts/useShiftTemplates';
 import { ShiftTemplate, TemplateFilters } from '@/types/shifts/templates';
 import { ShiftTemplateForm } from './ShiftTemplateForm';

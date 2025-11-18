@@ -9,6 +9,8 @@ export { templateShiftApi } from './templateShiftApi';
 export { dayTemplateApi } from './dayTemplateApi';
 export { employeeApi } from './employeeApi';
 export { departmentApi } from './departmentApi';
+export { locationApi } from './locationApi';
+export { jobPositionApi } from './jobPositionApi';
 
 // Export common types
 export type {
@@ -19,18 +21,20 @@ export type {
   ApiResponseWrapper,
 } from './types';
 
-// API Registry Object
+// API Registry Object - Commented out temporarily due to build issues
 // Provides a single import point for all API modules
-export const api = {
-  shiftAssignment: shiftAssignmentApi,
-  templateShift: templateShiftApi,
-  dayTemplate: dayTemplateApi,
-  employee: employeeApi,
-  department: departmentApi,
-} as const;
+// export const api = {
+//   shiftAssignment: shiftAssignmentApi,
+//   templateShift: templateShiftApi,
+//   dayTemplate: dayTemplateApi,
+//   employee: employeeApi,
+//   department: departmentApi,
+//   location: locationApi,
+//   jobPosition: jobPositionApi,
+// } as const;
 
 // Type for the API registry
-export type ApiRegistry = typeof api;
+// export type ApiRegistry = typeof api;
 
 /**
  * Usage examples:

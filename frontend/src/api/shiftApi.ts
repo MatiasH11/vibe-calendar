@@ -7,7 +7,7 @@
  */
 
 import { apiClient } from '@/lib/api';
-import type { ApiResponse } from '@/lib/api';
+import type { ApiResponse } from '@/types/api';
 
 // ============================================================================
 // Types
@@ -323,8 +323,8 @@ export const shiftApi = {
    */
   async bulkDelete(input: BulkDeleteInput): Promise<ApiResponse<BulkOperationResult<{ shift_id: number }>>> {
     return apiClient.delete<BulkOperationResult<{ shift_id: number }>>('/api/v1/shift/bulk', {
-      data: input,
-    });
+      body: JSON.stringify(input),
+    } as any);
   },
 
   /**

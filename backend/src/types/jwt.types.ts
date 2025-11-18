@@ -1,14 +1,13 @@
-import { user_type } from '@prisma/client';
+import { user_type, company_role } from '@prisma/client';
 
 export interface jwt_payload {
   user_id: number;
-  company_id: number;
-  admin_company_id: number; // Company ID for admin operations
-  employee_id: number; // ID de la tabla company_employees
-  role_id: number;
-  role_name: string;        // Rol de negocio: "Admin", "Vendedor", etc.
-  user_type: user_type;     // Permisos del sistema desde enum de Prisma
-  // exp es manejado automáticamente por JWT
+  employee_id: number;
+  company_id: number; // Company ID the user is currently working with
+  user_type: user_type; // Platform-level permission: SUPER_ADMIN or USER
+  company_role: company_role; // Company-level permission: OWNER, ADMIN, MANAGER, EMPLOYEE
+  email: string;
+  // exp and iat are handled automatically by JWT
 }
 
 

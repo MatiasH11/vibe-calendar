@@ -67,11 +67,11 @@ app.use('/api/v1/location', locationRouter);
 app.use('/api/v1/department', departmentRouter);
 app.use('/api/v1/employee', employeeRouter);
 app.use('/api/v1/shift', shiftRouter);
-app.use('/api/v1/job-positions', jobPositionRouter);
-app.use('/api/v1/day-templates', dayTemplateRouter);
-app.use('/api/v1/template-shifts', templateShiftRouter);
-app.use('/api/v1/template-shift-positions', templateShiftPositionRouter);
-app.use('/api/v1/shift-assignments', shiftAssignmentRouter);
+app.use('/api/v1/job_position', jobPositionRouter);
+app.use('/api/v1/day_template', dayTemplateRouter);
+app.use('/api/v1/template_shift', templateShiftRouter);
+app.use('/api/v1/template_shift_position', templateShiftPositionRouter);
+app.use('/api/v1/shift_assignment', shiftAssignmentRouter);
 
 // 404 Handler
 app.use('*', (req: Request, res: Response) => {

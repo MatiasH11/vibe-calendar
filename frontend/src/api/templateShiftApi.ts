@@ -12,7 +12,7 @@ import {
 } from '@/lib/validation';
 
 // API endpoint base
-const BASE_PATH = '/api/v1/template-shift';
+const BASE_PATH = '/api/v1/template_shift';
 
 // Response types
 interface GetAllResponse {
@@ -216,7 +216,7 @@ export const templateShiftApi = {
         `${BASE_PATH}/bulk/delete`,
         {
           body: JSON.stringify({ ids }),
-        }
+        } as any
       );
 
       if (!response.success || !response.data) {

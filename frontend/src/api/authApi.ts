@@ -6,7 +6,7 @@
  */
 
 import { apiClient } from '@/lib/api';
-import type { ApiResponse } from '@/lib/api';
+import type { ApiResponse } from '@/types/api';
 
 // ============================================================================
 // Types

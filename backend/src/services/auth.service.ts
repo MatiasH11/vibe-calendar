@@ -193,7 +193,7 @@ export const auth_service = {
     const payload = {
       user_id: user.id,
       employee_id: employee.id,
-      admin_company_id: employee.company_id,
+      company_id: employee.company_id, // Changed from admin_company_id to company_id for consistency
       user_type: user.user_type, // Platform-level: SUPER_ADMIN or USER
       company_role: employee.company_role, // Company-level: OWNER, ADMIN, MANAGER, EMPLOYEE
       email: user.email,

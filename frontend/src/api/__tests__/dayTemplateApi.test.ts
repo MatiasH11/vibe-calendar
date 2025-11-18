@@ -215,7 +215,7 @@ describe('dayTemplateApi', () => {
 
   describe('getActive', () => {
     it('should get only active day templates', async () => {
-      const activeTem plates = [
+      const activeTemplates = [
         mockDayTemplate,
         { ...mockDayTemplate, id: 2, name: 'Another Active' },
       ];

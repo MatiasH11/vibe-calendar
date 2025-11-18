@@ -101,7 +101,7 @@ export function useApiResource<T extends { id: number }, CreateInput, UpdateInpu
 
     try {
       const response = await apiMethods.getAll(filters);
-      setItems(response.data);
+      setItems(response.items);
 
       if (response.pagination) {
         setPagination(response.pagination);

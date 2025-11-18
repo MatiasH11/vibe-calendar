@@ -16,16 +16,22 @@ import {
 export const location_service = {
   /**
    * Get all locations with pagination and filters
+   * @param company_id - Company ID to filter by. If undefined, returns locations from all companies (SUPER_ADMIN only)
    */
-  async getAll(company_id: number, filters: location_filters) {
+  async getAll(company_id: number | undefined, filters: location_filters) {
     const page = parseInt(filters.page || '1');
     const limit = Math.min(parseInt(filters.limit || '50'), 100);
     const skip = (page - 1) * limit;
 
     const where: any = {
-      company_id,
       deleted_at: null,
     };
+
+    // Only filter by company_id if provided (USER role)
+    // SUPER_ADMIN can view all companies by passing undefined
+    if (company_id !== undefined) {
+      where.company_id = company_id;
+    }
 
     // Add search filter
     if (filters.search) {

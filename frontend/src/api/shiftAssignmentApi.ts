@@ -21,7 +21,7 @@ import {
 } from '@/lib/validation';
 
 // API endpoint base
-const BASE_PATH = '/api/v1/shift-assignment';
+const BASE_PATH = '/api/v1/shift_assignment';
 
 // Response types
 interface GetAllResponse {
@@ -283,7 +283,7 @@ export const shiftAssignmentApi = {
         `${BASE_PATH}/bulk/delete`,
         {
           body: JSON.stringify(data),
-        }
+        } as any
       );
 
       if (!response.success || !response.data) {

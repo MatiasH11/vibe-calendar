@@ -8,14 +8,15 @@ import { cn } from '@/lib/utils';
 import { NavigationItem } from './NavigationItem';
 import { UserInfo } from './UserInfo';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Calendar,
+  BarChart3,
   Settings,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Building2
 } from 'lucide-react';
 
 const navigationItems = [
@@ -24,6 +25,12 @@ const navigationItems = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     href: '/dashboard',
+  },
+  {
+    id: 'administracion',
+    label: 'Administración',
+    icon: Building2,
+    href: '/dashboard/administracion',
   },
   {
     id: 'reportes',

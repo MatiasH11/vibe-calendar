@@ -1,27 +1,29 @@
 /**
- * Department API Module
- * Handles department operations (CRUD, bulk operations)
+ * Job Position API Module
+ * Handles job position operations (CRUD, bulk operations)
  */
 
 import { apiClient } from '@/lib/api';
 import { createApiError } from '@/lib/errors';
 
-// Department type based on Prisma schema
-export interface Department {
+// Job Position type based on Prisma schema
+export interface JobPosition {
   id: number;
-  location_id: number;
   company_id: number;
+  department_id: number;
   name: string;
   description: string | null;
-  color: string;
+  color: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
   // Relations (when included)
-  location?: {
+  department?: {
     id: number;
     name: string;
+    color: string;
+    location_id: number;
   };
   employees?: Array<{
     id: number;
@@ -35,30 +37,25 @@ export interface Department {
       email: string;
     };
   }>;
-  job_positions?: Array<{
-    id: number;
-    name: string;
-    description: string | null;
-  }>;
 }
 
 // Input types based on backend validation schemas
-export interface CreateDepartmentInput {
-  location_id: number;
+export interface CreateJobPositionInput {
   name: string;
+  department_id: number;
   description?: string;
   color?: string;
   is_active?: boolean;
 }
 
-export interface UpdateDepartmentInput {
+export interface UpdateJobPositionInput {
   name?: string;
   description?: string;
   color?: string;
   is_active?: boolean;
 }
 
-export interface DepartmentFilters {
+export interface JobPositionFilters {
   page?: string;
   limit?: string;
   search?: string;
@@ -67,13 +64,13 @@ export interface DepartmentFilters {
   sort_order?: 'asc' | 'desc';
 }
 
-export interface BulkCreateDepartmentInput {
-  items: CreateDepartmentInput[];
+export interface BulkCreateJobPositionInput {
+  items: CreateJobPositionInput[];
 }
 
 // Response types
 interface GetAllResponse {
-  items: Department[];
+  items: JobPosition[];
   pagination: {
     page: number;
     limit: number;
@@ -94,16 +91,16 @@ interface BulkOperationResult<T = unknown> {
 }
 
 // API endpoint base
-const BASE_PATH = '/api/v1/department';
+const BASE_PATH = '/api/v1/job_position';
 
 /**
- * Department API
+ * Job Position API
  */
-export const departmentApi = {
+export const jobPositionApi = {
   /**
-   * Get all departments with optional filters
+   * Get all job positions with optional filters
    */
-  async getAll(filters?: DepartmentFilters): Promise<GetAllResponse> {
+  async getAll(filters?: JobPositionFilters): Promise<GetAllResponse> {
     try {
       const params: Record<string, string> = {};
 
@@ -119,7 +116,7 @@ export const departmentApi = {
       const response = await apiClient.get<GetAllResponse>(BASE_PATH, { params });
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to fetch departments');
+        throw new Error('Failed to fetch job positions');
       }
 
       return response.data;
@@ -129,14 +126,14 @@ export const departmentApi = {
   },
 
   /**
-   * Get department by ID
+   * Get job position by ID
    */
-  async getById(id: number): Promise<Department> {
+  async getById(id: number): Promise<JobPosition> {
     try {
-      const response = await apiClient.get<Department>(`${BASE_PATH}/${id}`);
+      const response = await apiClient.get<JobPosition>(`${BASE_PATH}/${id}`);
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to fetch department');
+        throw new Error('Failed to fetch job position');
       }
 
       return response.data;
@@ -146,14 +143,14 @@ export const departmentApi = {
   },
 
   /**
-   * Create new department
+   * Create new job position
    */
-  async create(data: CreateDepartmentInput): Promise<Department> {
+  async create(data: CreateJobPositionInput): Promise<JobPosition> {
     try {
-      const response = await apiClient.post<Department>(BASE_PATH, data);
+      const response = await apiClient.post<JobPosition>(BASE_PATH, data);
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to create department');
+        throw new Error('Failed to create job position');
       }
 
       return response.data;
@@ -163,14 +160,14 @@ export const departmentApi = {
   },
 
   /**
-   * Update department
+   * Update job position
    */
-  async update(id: number, data: UpdateDepartmentInput): Promise<Department> {
+  async update(id: number, data: UpdateJobPositionInput): Promise<JobPosition> {
     try {
-      const response = await apiClient.put<Department>(`${BASE_PATH}/${id}`, data);
+      const response = await apiClient.put<JobPosition>(`${BASE_PATH}/${id}`, data);
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to update department');
+        throw new Error('Failed to update job position');
       }
 
       return response.data;
@@ -180,14 +177,14 @@ export const departmentApi = {
   },
 
   /**
-   * Delete department (soft delete)
+   * Delete job position (soft delete)
    */
   async delete(id: number): Promise<void> {
     try {
       const response = await apiClient.delete<void>(`${BASE_PATH}/${id}`);
 
       if (!response.success) {
-        throw new Error('Failed to delete department');
+        throw new Error('Failed to delete job position');
       }
     } catch (error) {
       throw createApiError(error);
@@ -195,17 +192,17 @@ export const departmentApi = {
   },
 
   /**
-   * Bulk create departments
+   * Bulk create job positions
    */
-  async bulkCreate(data: BulkCreateDepartmentInput): Promise<BulkOperationResult<Department>> {
+  async bulkCreate(data: BulkCreateJobPositionInput): Promise<BulkOperationResult<JobPosition>> {
     try {
-      const response = await apiClient.post<BulkOperationResult<Department>>(
+      const response = await apiClient.post<BulkOperationResult<JobPosition>>(
         `${BASE_PATH}/bulk/create`,
         data
       );
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to bulk create departments');
+        throw new Error('Failed to bulk create job positions');
       }
 
       return response.data;
@@ -215,20 +212,20 @@ export const departmentApi = {
   },
 
   /**
-   * Bulk update departments
+   * Bulk update job positions
    */
   async bulkUpdate(
     ids: number[],
-    data: UpdateDepartmentInput
-  ): Promise<BulkOperationResult<Department>> {
+    data: UpdateJobPositionInput
+  ): Promise<BulkOperationResult<JobPosition>> {
     try {
-      const response = await apiClient.put<BulkOperationResult<Department>>(
+      const response = await apiClient.put<BulkOperationResult<JobPosition>>(
         `${BASE_PATH}/bulk/update`,
         { ids, data }
       );
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to bulk update departments');
+        throw new Error('Failed to bulk update job positions');
       }
 
       return response.data;
@@ -238,7 +235,7 @@ export const departmentApi = {
   },
 
   /**
-   * Bulk delete departments
+   * Bulk delete job positions
    */
   async bulkDelete(ids: number[]): Promise<BulkOperationResult<void>> {
     try {
@@ -250,7 +247,7 @@ export const departmentApi = {
       );
 
       if (!response.success || !response.data) {
-        throw new Error('Failed to bulk delete departments');
+        throw new Error('Failed to bulk delete job positions');
       }
 
       return response.data;
@@ -260,25 +257,25 @@ export const departmentApi = {
   },
 
   /**
-   * Get department with employees
+   * Get job position with employees
    * Note: This assumes the backend supports include=employees query parameter
    * If not implemented yet, this would need backend support
    */
-  async getWithEmployees(id: number): Promise<Department> {
+  async getWithEmployees(id: number): Promise<JobPosition> {
     try {
-      // For now, just get the department by ID
+      // For now, just get the job position by ID
       // In the future, this could be enhanced with include=employees parameter
-      const department = await this.getById(id);
-      return department;
+      const jobPosition = await this.getById(id);
+      return jobPosition;
     } catch (error) {
       throw createApiError(error);
     }
   },
 
   /**
-   * Get active departments only
+   * Get active job positions only
    */
-  async getActive(filters?: Omit<DepartmentFilters, 'is_active'>): Promise<Department[]> {
+  async getActive(filters?: Omit<JobPositionFilters, 'is_active'>): Promise<JobPosition[]> {
     try {
       const response = await this.getAll({
         ...filters,
@@ -292,9 +289,9 @@ export const departmentApi = {
   },
 
   /**
-   * Search departments by name
+   * Search job positions by name
    */
-  async search(query: string, filters?: Omit<DepartmentFilters, 'search'>): Promise<Department[]> {
+  async search(query: string, filters?: Omit<JobPositionFilters, 'search'>): Promise<JobPosition[]> {
     try {
       const response = await this.getAll({
         ...filters,
@@ -308,14 +305,14 @@ export const departmentApi = {
   },
 
   /**
-   * Get departments by location
+   * Get job positions by department
    */
-  async getByLocation(locationId: number, filters?: DepartmentFilters): Promise<Department[]> {
+  async getByDepartment(departmentId: number, filters?: JobPositionFilters): Promise<JobPosition[]> {
     try {
-      // Get all departments and filter client-side by location_id
+      // Get all job positions and filter client-side by department_id
       // In the future, this could be a backend filter
       const response = await this.getAll(filters);
-      return response.items.filter((dept) => dept.location_id === locationId);
+      return response.items.filter((position) => position.department_id === departmentId);
     } catch (error) {
       throw createApiError(error);
     }

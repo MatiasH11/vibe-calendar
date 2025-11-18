@@ -135,13 +135,13 @@ export const employeeApi = {
         if (filters.updated_before) params.updated_before = filters.updated_before;
       }
 
-      const response = await apiClient.get<{ data: GetAllResponse }>(BASE_PATH, { params });
+      const response = await apiClient.get<GetAllResponse>(BASE_PATH, { params });
 
       if (!response.success || !response.data) {
         throw new Error('Failed to fetch employees');
       }
 
-      return response.data.data;
+      return response.data;
     } catch (error) {
       throw createApiError(error);
     }
@@ -281,7 +281,7 @@ export const employeeApi = {
         `${BASE_PATH}/bulk/delete`,
         {
           body: JSON.stringify({ ids }),
-        }
+        } as any
       );
 
       if (!response.success || !response.data) {
